@@ -1,0 +1,42 @@
+# Secret Credentials
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Python runtime footprints
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+**/.Python
+**/env/
+**/venv/
+**/.venv/
+**/build/
+**/develop-eggs/
+**/dist/
+**/downloads/
+**/eggs/
+**/.eggs/
+**/lib/
+**/lib64/
+**/parts/
+**/sdist/
+**/var/
+**/wheels/
+**/share/python-wheels/
+**/*.egg-info/
+**/.installed.cfg
+**/*.egg
+**/MANIFEST
+
+# Local testing and data configurations
+**/.pytest_cache/
+**/.coverage
+**/htmlcov/
+**/test.db
+
+# Operating system footprints
+**/.DS_Store
+**/Thumbs.db
+**/firebase-key.json
