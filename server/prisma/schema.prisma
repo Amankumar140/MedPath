@@ -1,0 +1,332 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NOTE: Models and migrations will be implemented in subsequent phases.
+// A placeholder model is defined to enable Prisma Client generation.
+model SystemMetadata {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
+}
+
+model Hospital {
+  id                         String   @id @default(uuid()) @db.Uuid
+  hospitalName               String   @map("hospital_name")
+  ownershipType              String?  @map("ownership_type")
+  address                    String?
+  locality                   String?
+  city                       String
+  state                      String?
+  pincode                    String?
+  latitude                   Float?
+  longitude                  Float?
+  phoneNumber                String?  @map("phone_number")
+  websiteUrl                 String?  @map("website_url")
+  googleMapsUrl              String?  @map("google_maps_url")
+  overallRating              Float?   @map("overall_rating")
+  reviewCount                Int?     @map("review_count")
+  emergencyAvailable         Boolean? @map("emergency_available")
+  twentyFourSeven            Boolean? @map("twenty_four_seven")
+  icuAvailable               Boolean? @map("icu_available")
+  ambulanceAvailable         Boolean? @map("ambulance_available")
+  insuranceCashlessAvailable Boolean? @map("insurance_cashless_available")
+  accreditationNabh          Boolean? @map("accreditation_nabh")
+  accreditationNabl          Boolean? @map("accreditation_nabl")
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                  DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  intelligence       HospitalIntelligence?
+  reviewInsights     HospitalReviewInsights?
+  specializations    HospitalSpecialization[]
+  facilities         HospitalFacility[]
+  costEstimates      HospitalCostEstimate[]
+  sources            HospitalSource[]
+  searchCaches       HospitalSearchCache[]
+
+  @@map("hospitals")
+}
+
+model HospitalIntelligence {
+  id                         String   @id @default(uuid()) @db.Uuid
+  hospitalId                 String   @unique @map("hospital_id") @db.Uuid
+  trustScore                 Float?   @map("trust_score")
+  billingTransparencyScore   Float?   @map("billing_transparency_score")
+  hiddenChargeRiskScore      Float?   @map("hidden_charge_risk_score")
+  recommendationConfidence   Float?   @map("recommendation_confidence")
+  elderlySuitabilityScore    Float?   @map("elderly_suitability_score")
+  doctorQualityScore         Float?   @map("doctor_quality_score")
+  emergencyCapabilityScore   Float?   @map("emergency_capability_score")
+  affordabilityScore         Float?   @map("affordability_score")
+  cleanlinessScore           Float?   @map("cleanliness_score")
+  safetyScore                Float?   @map("safety_score")
+  patientSatisfactionScore   Float?   @map("patient_satisfaction_score")
+  avgWaitTimeMinutes         Int?     @map("avg_wait_time_minutes")
+  availabilityConfidence     Float?   @map("availability_confidence")
+  updatedAt                  DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@map("hospital_intelligence")
+}
+
+model HospitalReviewInsights {
+  id               String   @id @default(uuid()) @db.Uuid
+  hospitalId       String   @unique @map("hospital_id") @db.Uuid
+  sentimentScore   Float?   @map("sentiment_score")
+  positiveSummary  String?  @map("positive_summary")
+  negativeSummary  String?  @map("negative_summary")
+  aiReviewSummary  String?  @map("ai_review_summary")
+  lastReviewUpdate DateTime @default(now()) @map("last_review_update") @db.Timestamptz
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@map("hospital_review_insights")
+}
+
+model HospitalSpecialization {
+  id                 String @id @default(uuid()) @db.Uuid
+  hospitalId         String @map("hospital_id") @db.Uuid
+  specializationName String @map("specialization_name")
+  confidenceScore    Float? @map("confidence_score")
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@map("hospital_specializations")
+}
+
+model HospitalFacility {
+  id           String @id @default(uuid()) @db.Uuid
+  hospitalId   String @map("hospital_id") @db.Uuid
+  facilityName String @map("facility_name")
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@map("hospital_facilities")
+}
+
+model HospitalCostEstimate {
+  id               String   @id @default(uuid()) @db.Uuid
+  hospitalId       String   @map("hospital_id") @db.Uuid
+  medicalCategory  String   @map("medical_category")
+  conditionName    String?  @map("condition_name")
+  procedureName    String?  @map("procedure_name")
+  consultationCost Float?   @map("consultation_cost")
+  diagnosticsCost  Float?   @map("diagnostics_cost")
+  stayCost         Float?   @map("stay_cost")
+  surgeryCost      Float?   @map("surgery_cost")
+  contingencyCost  Float?   @map("contingency_cost")
+  city             String?
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@map("hospital_cost_estimates")
+}
+
+model HospitalSource {
+  id                String    @id @default(uuid()) @db.Uuid
+  hospitalId        String    @map("hospital_id") @db.Uuid
+  sourceName        String    @map("source_name")
+  sourceUrl         String    @map("source_url")
+  sourceRating      Float?    @map("source_rating")
+  sourceReviewCount Int?      @map("source_review_count")
+  lastScrapedAt     DateTime? @map("last_scraped_at") @db.Timestamptz
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@map("hospital_sources")
+}
+
+model HospitalSearchCache {
+  id                       String    @id @default(uuid()) @db.Uuid
+  hospitalId               String    @map("hospital_id") @db.Uuid
+  searchKeywords           String[]  @map("search_keywords")
+  matchedConditions        String[]  @map("matched_conditions")
+  specializationMatchScore Float?    @map("specialization_match_score")
+  lastSeenOnline           DateTime? @map("last_seen_online") @db.Timestamptz
+  sourcePlatforms          String[]  @map("source_platforms")
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@map("hospital_search_cache")
+}
+
+model User {
+  id                  String    @id @default(uuid()) @db.Uuid
+  firebaseUid         String    @unique @map("firebase_uid")
+  email               String    @unique
+  displayName         String?   @map("display_name")
+  photoUrl            String?   @map("photo_url")
+  phoneNumber         String?   @map("phone_number")
+  preferredLanguage   String?   @default("en") @map("preferred_language")
+  onboardingCompleted Boolean   @default(false) @map("onboarding_completed")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  lastLoginAt         DateTime? @map("last_login_at") @db.Timestamptz
+  isActive            Boolean   @default(true) @map("is_active")
+
+  conversations       Conversation[]
+  savedLocations      SavedLocation[]
+  reviews             HospitalReview[]
+
+  @@map("users")
+}
+
+model Conversation {
+  id                     String                   @id @default(uuid()) @db.Uuid
+  userId                 String                   @map("user_id") @db.Uuid
+  title                  String
+  status                 ConversationStatus       @default(ACTIVE)
+  detectedLanguage       String?                  @map("detected_language")
+  createdAt              DateTime                 @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt              DateTime?                @map("deleted_at") @db.Timestamptz
+
+  user                   User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages               ConversationMessage[]
+  patientContext         PatientContext?
+  recommendationSnapshots RecommendationSnapshot[]
+  reviews                 HospitalReview[]
+
+  @@map("conversations")
+}
+
+model ConversationMessage {
+  id             String        @id @default(uuid()) @db.Uuid
+  conversationId String        @map("conversation_id") @db.Uuid
+  sender         MessageSender
+  message        String
+  messageType    MessageType   @map("message_type")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("conversation_messages")
+}
+
+model PatientContext {
+  id                String       @id @default(uuid()) @db.Uuid
+  conversationId    String       @unique @map("conversation_id") @db.Uuid
+  symptoms          String?
+  age               Int?
+  durationDays      Int?         @map("duration_days")
+  location          String?
+  latitude          Float?
+  longitude         Float?
+  formattedAddress  String?      @map("formatted_address")
+  city              String?
+  careIntent        String?      @map("care_intent")
+  budget            String?
+  detectedLanguage  String?      @map("detected_language")
+  isContextComplete Boolean      @default(false) @map("is_context_complete")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("patient_contexts")
+}
+
+model SavedLocation {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  label            String
+  formattedAddress String   @map("formatted_address")
+  latitude         Float?
+  longitude        Float?
+  city             String?
+  state            String?
+  country          String?
+  postalCode       String?  @map("postal_code")
+  isDefault        Boolean  @default(false) @map("is_default")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_locations")
+}
+
+enum ConversationStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum MessageSender {
+  USER
+  AI
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  STATUS
+  FOLLOW_UP
+  FINAL
+}
+
+model RecommendationSnapshot {
+  id              String       @id @default(uuid()) @db.Uuid
+  conversationId  String       @map("conversation_id") @db.Uuid
+  hospitalName    String       @map("hospital_name")
+  rankingPosition Int          @map("ranking_position")
+  confidenceScore Float        @map("confidence_score")
+  trustScore      Float        @map("trust_score")
+  estimatedCost   String       @map("estimated_cost")
+  distance        String
+  latitude        Float?
+  longitude       Float?
+  reason          String       @db.Text
+  source          String?
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  reviews         HospitalReview[]
+
+  @@map("recommendation_snapshots")
+}
+
+model HospitalReview {
+  id                       String                 @id @default(uuid()) @db.Uuid
+  userId                   String                 @map("user_id") @db.Uuid
+  conversationId           String                 @map("conversation_id") @db.Uuid
+  recommendationSnapshotId String                 @map("recommendation_snapshot_id") @db.Uuid
+  hospitalName             String                 @map("hospital_name")
+  visited                  Boolean?
+  treatmentType            String?                @map("treatment_type")
+  estimatedCost            String?                @map("estimated_cost")
+  actualCost               Float?                 @map("actual_cost")
+  costAccuracy             String?                @map("cost_accuracy")
+  doctorQuality            Int?                   @map("doctor_quality")
+  diagnosisExplanation     Int?                   @map("diagnosis_explanation")
+  waitingTimeRating        Int?                   @map("waiting_time_rating")
+  facilityRating           Int?                   @map("facility_rating")
+  staffRating              Int?                   @map("staff_rating")
+  billingTransparency      Int?                   @map("billing_transparency")
+  hiddenCharges            String?                @map("hidden_charges")
+  specialtyMatch           Int?                   @map("specialty_match")
+  medpathAccuracy          Int?                   @map("medpath_accuracy")
+  hospitalRecommendation   String?                @map("hospital_recommendation")
+  reviewText               String?                @map("review_text") @db.Text
+  status                   String                 @default("DRAFT")
+  createdAt                DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user                   User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation           Conversation           @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  recommendationSnapshot RecommendationSnapshot @relation(fields: [recommendationSnapshotId], references: [id], onDelete: Cascade)
+
+  @@unique([recommendationSnapshotId])
+  @@map("hospital_reviews")
+}
+
