@@ -4,6 +4,7 @@ const logger = require('../config/logger');
 const { redisClient } = require('../config/redis');
 
 // Instantiate Axios client targeting the Python FastAPI service
+// Instantiate Axios client targeting the Python FastAPI service
 const pythonClient = axios.create({
   baseURL: env.PYTHON_SERVICE_URL,
   timeout: 30000, // Centralized timeout: 30s for LLM processing
@@ -12,35 +13,43 @@ const pythonClient = axios.create({
   },
 });
 
-// Request interceptor for logging (avoiding logging medical data)
+// Request interceptor for detailed diagnostic logging
 pythonClient.interceptors.request.use(
   (config) => {
-    logger.debug(`📤 Sending request to Python service: [${config.method.toUpperCase()}] ${config.url}`);
+    const absoluteUrl = config.baseURL 
+      ? (config.baseURL.endsWith('/') ? config.baseURL.slice(0, -1) : config.baseURL) + config.url 
+      : config.url;
+      
+    logger.info('📤 [Axios Request Details]');
+    logger.info(`🔗 URL: [${config.method.toUpperCase()}] ${absoluteUrl}`);
+    logger.info(`📋 Headers: ${JSON.stringify(config.headers)}`);
+    logger.info(`📦 Payload: ${JSON.stringify(config.data)}`);
     return config;
   },
   (error) => {
-    logger.error('❌ Request error to Python service:', error);
+    logger.error('❌ Request compilation error to Python service:', error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor for logging
+// Response interceptor for detailed diagnostic logging
 pythonClient.interceptors.response.use(
   (response) => {
-    logger.debug(`📥 Received response from Python service: status ${response.status}`);
+    logger.info(`📥 Received response from Python service: status ${response.status}`);
     return response;
   },
   (error) => {
-    const status = error.response?.status;
-    const url = error.config?.url;
-    const message = error.message;
-
-    // Log the error but ensure no patient details are stored
-    logger.error('❌ Response error from Python service:', {
-      message,
-      url,
-      status,
-    });
+    logger.error('❌ [Axios Response Error Details]');
+    logger.error(`Message: ${error.message}`);
+    logger.error(`Code: ${error.code}`);
+    logger.error(`Response Status: ${error.response?.status}`);
+    logger.error(`Response Headers: ${JSON.stringify(error.response?.headers)}`);
+    logger.error(`Response Data: ${JSON.stringify(error.response?.data)}`);
+    logger.error(`Stack: ${error.stack}`);
+    logger.error(`Config URL: ${error.config?.url}`);
+    logger.error(`Config Method: ${error.config?.method}`);
+    logger.error(`Config Headers: ${JSON.stringify(error.config?.headers)}`);
+    logger.error(`Config Data: ${JSON.stringify(error.config?.data)}`);
     return Promise.reject(error);
   }
 );
@@ -113,12 +122,15 @@ async function sendMessageStream(conversationId, messageText) {
   const start = Date.now();
   let retryCount = 0;
 
+  const disableStreaming = process.env.DISABLE_STREAMING_REQUESTS === 'true';
+  const responseType = disableStreaming ? 'json' : 'stream';
+
   const requestFn = async () => {
     return await pythonClient.post('/api/chat', {
       session_id: conversationId,
       user_input: messageText,
     }, {
-      responseType: 'stream',
+      responseType,
     });
   };
 
@@ -127,8 +139,20 @@ async function sendMessageStream(conversationId, messageText) {
     incrementMetric('metrics:retry_count');
   });
 
+  let responseStream;
+  if (!disableStreaming) {
+    responseStream = response.data;
+  } else {
+    // Convert normal response data to a stream so the caller doesn't break
+    const { PassThrough } = require('stream');
+    responseStream = new PassThrough();
+    const dataStr = typeof response.data === 'object' ? JSON.stringify(response.data) : response.data;
+    responseStream.write(dataStr);
+    responseStream.end();
+  }
+
   return {
-    responseStream: response.data,
+    responseStream,
     startTime: start,
     retryCount,
   };
