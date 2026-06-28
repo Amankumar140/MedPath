@@ -7,7 +7,7 @@ const { redisClient } = require('../config/redis');
 // Instantiate Axios client targeting the Python FastAPI service
 const pythonClient = axios.create({
   baseURL: env.PYTHON_SERVICE_URL,
-  timeout: 30000, // Centralized timeout: 30s for LLM processing
+  timeout: 180000, // Centralized timeout: 30s for LLM processing
   headers: {
     'Content-Type': 'application/json',
   },
