@@ -1,5 +1,7 @@
-# Build stage
-FROM node:18-alpine AS builder
+# =========================
+# Build Stage
+# =========================
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /usr/src/app
 
@@ -8,32 +10,30 @@ COPY prisma ./prisma/
 
 RUN npm ci
 
+COPY . .
+
 # Generate Prisma Client
 RUN npx prisma generate
 
-COPY . .
-
-# Production stage
-FROM node:18-alpine AS runner
+# =========================
+# Production Stage
+# =========================
+FROM node:22-bookworm-slim
 
 WORKDIR /usr/src/app
 
 ENV NODE_ENV=production
 
 COPY package*.json ./
+COPY prisma ./prisma/
 
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
-# Copy built prisma client and app code
-COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /usr/src/app/node_modules/@prisma/client ./node_modules/@prisma/client
-COPY --from=builder /usr/src/app/prisma ./prisma
 COPY --from=builder /usr/src/app/src ./src
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/prisma ./prisma
 
-# Create log and upload folders
-RUN mkdir -p logs uploads && chown -R node:node /usr/src/app
-
-USER node
+RUN mkdir -p logs uploads
 
 EXPOSE 3000
 
