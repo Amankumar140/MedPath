@@ -23,6 +23,7 @@ const envSchema = z.object({
   FIREBASE_MESSAGING_SENDER_ID: z.string().optional(),
   FIREBASE_APP_ID: z.string().optional(),
   FIREBASE_MEASUREMENT_ID: z.string().optional(),
+  CLIENT_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

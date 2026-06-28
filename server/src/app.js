@@ -20,9 +20,11 @@ app.set('trust proxy', 1);
 
 // 2. Global Security Middlewares
 app.use(helmet());
+
+const allowedOrigins = env.CLIENT_URL ? env.CLIENT_URL.split(',').map(o => o.trim()) : [];
 app.use(cors({
   origin: env.NODE_ENV === 'production' 
-    ? false // Configure production domains here
+    ? (allowedOrigins.length > 0 ? (allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins) : false)
     : true, // Allow all origins in development
   credentials: true,
 }));
