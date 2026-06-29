@@ -43,13 +43,28 @@ pythonClient.interceptors.response.use(
     logger.error(`Message: ${error.message}`);
     logger.error(`Code: ${error.code}`);
     logger.error(`Response Status: ${error.response?.status}`);
-    logger.error(`Response Headers: ${JSON.stringify(error.response?.headers)}`);
-    logger.error(`Response Data: ${JSON.stringify(error.response?.data)}`);
+    logger.error(`Response Headers: ${error.response?.headers ? JSON.stringify(error.response.headers) : 'undefined'}`);
+    
+    // Safely check and log response data stream vs json
+    if (error.response?.data) {
+      if (error.config?.responseType === 'stream' || typeof error.response.data.on === 'function') {
+        logger.error('Response Data: [ReadableStream]');
+      } else {
+        try {
+          logger.error(`Response Data: ${JSON.stringify(error.response.data)}`);
+        } catch (e) {
+          logger.error('Response Data: [Unserializable]');
+        }
+      }
+    } else {
+      logger.error('Response Data: undefined');
+    }
+    
     logger.error(`Stack: ${error.stack}`);
     logger.error(`Config URL: ${error.config?.url}`);
     logger.error(`Config Method: ${error.config?.method}`);
-    logger.error(`Config Headers: ${JSON.stringify(error.config?.headers)}`);
-    logger.error(`Config Data: ${JSON.stringify(error.config?.data)}`);
+    logger.error(`Config Headers: ${error.config?.headers ? JSON.stringify(error.config.headers) : 'undefined'}`);
+    logger.error(`Config Data: ${error.config?.data ? (typeof error.config.data === 'object' ? JSON.stringify(error.config.data) : error.config.data) : 'undefined'}`);
     return Promise.reject(error);
   }
 );

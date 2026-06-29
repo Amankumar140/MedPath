@@ -16,6 +16,11 @@ if sys.platform == "win32":
 
 app = FastAPI()
 
+# Health check route for Render and Node backend
+@app.get("/health")
+async def health_check():
+    return {"status": "UP", "version": "1.0.0"}
+
 # 1. Mount your root route to serve index.html
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
@@ -87,12 +92,16 @@ async def chat_endpoint(request: Request):
             final_ranking = ranker_engine.rank_hospitals(patient_context, raw_scraped_data)
 
             # Map the structured Pydantic object elements cleanly into the delivery array
-            hospitals_payload = []
-            for hosp in final_ranking.recommended_hospitals:
-                # Query Google Maps API for exact road metrics and spatial coordinates
-                maps_info = research_engine.resolve_real_distance(patient_context.location, hosp.hospital_name)
-                
-                hospitals_payload.append({
+            async def resolve_hosp_distance(hosp):
+                loop = asyncio.get_running_loop()
+                # Run the synchronous resolve_real_distance in a thread pool to execute concurrently
+                maps_info = await loop.run_in_executor(
+                    None, 
+                    research_engine.resolve_real_distance, 
+                    patient_context.location, 
+                    hosp.hospital_name
+                )
+                return {
                     "hospital_name": hosp.hospital_name,
                     "ranking_position": hosp.ranking_position,
                     "confidence_score": hosp.confidence_score,
@@ -103,7 +112,11 @@ async def chat_endpoint(request: Request):
                     "explanation": hosp.explanation,
                     "latitude": maps_info.get("lat"),
                     "longitude": maps_info.get("lng")
-                })
+                }
+
+            # Run all distance queries concurrently
+            tasks = [resolve_hosp_distance(hosp) for hosp in final_ranking.recommended_hospitals]
+            hospitals_payload = await asyncio.gather(*tasks)
 
             ai_final_summary = f"Based on your location in {patient_context.location} and health criteria regarding '{patient_context.symptoms}', I have processed local medical registries. Here are your optimized options:"
             conversation_history.append(("ai", ai_final_summary))
@@ -125,4 +138,6 @@ async def chat_endpoint(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=False)
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)

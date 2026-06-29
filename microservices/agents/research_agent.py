@@ -66,9 +66,15 @@ class ResearchAgent:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
+            # Optimize: Block heavy resource loads (images, styles, fonts, media) to save RAM and time
+            async def block_resources(route):
+                if route.request.resource_type in ["image", "stylesheet", "media", "font"]:
+                    await route.abort()
+                else:
+                    await route.continue_()
+            await page.route("**/*", block_resources)
             try:
-                await page.goto(url, timeout=30000)
-                await page.wait_for_timeout(2000)
+                await page.goto(url, timeout=15000)
                 content = await page.content()
                 soup = BeautifulSoup(content, "html.parser")
                 for element in soup(["script", "style", "header", "footer", "nav"]):
@@ -89,12 +95,16 @@ class ResearchAgent:
         options.add_argument("--headless=new") # Run without a UI GUI
         options.add_argument("--no-sandbox")   # Required to run as root in Docker
         options.add_argument("--disable-dev-shm-usage") # Overcomes limited resource problems
+        options.add_argument("--disable-gpu")
+        options.add_argument("--blink-settings=imagesEnabled=false") # Disable image loading
+        options.page_load_strategy = 'eager' # Return when DOM is loaded (ignore CSS/assets)
         
         # Point directly to the Linux container's binary installations if it exists (e.g. in Docker)
         if os.path.exists("/usr/bin/chromium"):
             options.binary_location = "/usr/bin/chromium"
         
         driver = webdriver.Chrome(options=options)
+        driver.set_page_load_timeout(10) # 10s page load limit
         results = []
         try:
             search_url = f"https://www.google.com/search?q={target_search.replace(' ', '+')}+hospitals"
