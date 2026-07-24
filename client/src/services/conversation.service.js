@@ -1,14 +1,20 @@
 import api from "./axios";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
 export const conversationService = {
   /**
    * Create a new conversation session
    * @param {string} [title] - Conversation title
    */
-  async createConversation(title) {
-    const response = await api.post("/conversations", { title });
+  async createConversation(title, locationData) {
+    const response = await api.post("/conversations", {
+      title,
+      latitude: locationData?.latitude || null,
+      longitude: locationData?.longitude || null,
+      formattedAddress: locationData?.formattedAddress || null,
+      city: locationData?.city || null,
+    });
     return response.data;
   },
 
@@ -46,7 +52,7 @@ export const conversationService = {
    * @param {function} onEnd - Callback triggered when the stream finishes successfully
    * @param {function} onError - Callback triggered on errors
    */
-  async sendMessageStream(id, message, onChunk, onEnd, onError) {
+  async sendMessageStream(id, message, locationData, onChunk, onEnd, onError) {
     try {
       const token = localStorage.getItem("medpath_token");
       const response = await fetch(`${BASE_URL}/conversations/${id}/messages`, {
@@ -56,7 +62,13 @@ export const conversationService = {
           "Accept": "text/event-stream",
           ...(token ? { "Authorization": `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({
+          message,
+          latitude: locationData?.latitude || null,
+          longitude: locationData?.longitude || null,
+          formattedAddress: locationData?.formattedAddress || null,
+          city: locationData?.city || null,
+        }),
       });
 
       if (!response.ok) {
@@ -120,6 +132,15 @@ export const conversationService = {
     } catch (error) {
       onError(error);
     }
+  },
+  
+  /**
+   * Fetch discovery search progress from Node backend.
+   * @param {string} id - Conversation UUID.
+   */
+  async getDiscoveryProgress(id) {
+    const response = await api.get(`/conversations/${id}/discovery/progress`);
+    return response.data;
   },
 };
 

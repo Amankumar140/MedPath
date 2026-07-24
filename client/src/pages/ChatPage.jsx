@@ -6,12 +6,15 @@ import { usePatientLocation } from "../context/LocationContext";
 import { SkeletonChatBubble } from "../components/SkeletonLoader";
 import LocationPermissionModal from "../components/location/LocationPermissionModal";
 import { Card, Button, Badge } from "../components/ui";
+import TypingBubble from "../components/chat/TypingBubble";
+import StreamingMessage from "../components/chat/StreamingMessage";
+import AIThinkingMessage from "../components/chat/AIThinkingMessage";
+import DiscoveryProgressCard from "../components/chat/DiscoveryProgressCard";
 
 // Memoized message component to prevent unnecessary re-renders
 const ChatMessage = memo(function ChatMessage({ msg, isLast, isStreaming, onChipClick, recommendations }) {
   const isUser = msg.sender === "USER";
   const isSystem = msg.sender === "SYSTEM";
-  const navigate = useNavigate();
 
   if (isSystem) {
     return (
@@ -23,136 +26,24 @@ const ChatMessage = memo(function ChatMessage({ msg, isLast, isStreaming, onChip
     );
   }
 
+  if (!isUser) {
+    return (
+      <TypingBubble
+        text={msg.message}
+        isStreaming={false}
+        isLast={isLast}
+        messageType={msg.messageType}
+        recommendations={recommendations}
+        onChipClick={onChipClick}
+        conversationId={msg.conversationId}
+      />
+    );
+  }
+
   return (
-    <div className="flex gap-4 w-full max-w-[85%] animate-fade-in" style={{ marginLeft: isUser ? 'auto' : '0', justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
-      {!isUser && (
-        <div className="w-9 h-9 rounded-xl bg-primary text-on-primary flex-shrink-0 flex items-center justify-center shadow-md relative" aria-hidden="true">
-          <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-            robot_2
-          </span>
-          <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border border-surface"></div>
-        </div>
-      )}
-
-      <div
-        className={`rounded-2xl p-4 shadow-sm border transition-all ${
-          isUser
-            ? "premium-gradient-primary text-on-primary rounded-tr-sm shadow-md"
-            : `premium-glass-card text-on-surface rounded-tl-sm space-y-3 border-outline-variant/15 ${
-                recommendations && recommendations.length > 0
-                  ? "w-full md:w-[480px] lg:w-[520px] max-w-full shadow-md"
-                  : "w-fit max-w-full"
-              }`
-        }`}
-      >
+    <div className="flex gap-4 w-full max-w-[85%] animate-fade-in" style={{ marginLeft: 'auto', justifyContent: 'flex-end' }}>
+      <div className="rounded-2xl p-4 shadow-sm border transition-all premium-gradient-primary text-on-primary rounded-tr-sm shadow-md">
         <p className="text-body-md font-body-md whitespace-pre-wrap leading-relaxed">{msg.message}</p>
-
-        {/* Inline Follow-up Chips for Symptom triage */}
-        {!isUser && msg.messageType === "FOLLOW_UP" && isLast && !isStreaming && (
-          <div className="flex flex-wrap gap-2 pt-2.5" role="group" aria-label="Quick response options">
-            <Button
-              onClick={() => onChipClick("Fever or chills")}
-              variant="outline"
-              size="sm"
-              className="!rounded-full hover-lift"
-            >
-              Fever or chills
-            </Button>
-            <Button
-              onClick={() => onChipClick("Shortness of breath")}
-              variant="outline"
-              size="sm"
-              className="!rounded-full hover-lift"
-            >
-              Shortness of breath
-            </Button>
-            <Button
-              onClick={() => onChipClick("Fatigue")}
-              variant="outline"
-              size="sm"
-              className="!rounded-full hover-lift"
-            >
-              Fatigue
-            </Button>
-            <Button
-              onClick={() => onChipClick("None of these")}
-              variant="outline"
-              size="sm"
-              className="!rounded-full border-outline text-on-surface-variant hover-lift"
-            >
-              None of these
-            </Button>
-          </div>
-        )}
-
-        {/* Inline recommendations if present */}
-        {!isUser && recommendations && recommendations.length > 0 && (
-          <div className="mt-4 space-y-3 w-full max-w-full animate-fade-in" role="region" aria-label="Hospital recommendations">
-            <div className="flex items-center gap-1.5 border-b border-outline-variant/15 pb-2 mb-2">
-              <span className="material-symbols-outlined text-[16px] text-secondary">local_hospital</span>
-              <p className="text-[11px] font-bold text-outline uppercase tracking-wider">Recommended Healthcare Facilities</p>
-            </div>
-            {recommendations.map((hosp, i) => (
-              <Card
-                key={hosp.id || i}
-                variant="lowest"
-                hoverLift
-                className="p-4 border border-outline-variant/20 flex flex-col gap-2.5 hover:border-outline-variant/35"
-              >
-                <div className="flex justify-between items-start gap-3">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-fixed w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0" aria-hidden="true">
-                      {hosp.rankingPosition}
-                    </span>
-                    <h5 className="font-bold text-sm text-primary dark:text-primary-fixed leading-tight truncate">
-                      {hosp.hospitalName}
-                    </h5>
-                  </div>
-                  <Badge variant="secondary">
-                    {Math.round((hosp.confidenceScore > 1 ? hosp.confidenceScore / 100 : hosp.confidenceScore) * 100)}% Match
-                  </Badge>
-                </div>
-                <p className="text-xs text-on-surface-variant/90 line-clamp-2 leading-relaxed font-medium">
-                  {hosp.reason}
-                </p>
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-outline-variant/10">
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-on-surface-variant bg-surface-container-low dark:bg-surface-container-high px-2 py-1 rounded-md border border-outline-variant/10">
-                      <span className="material-symbols-outlined text-[13px] text-secondary">route</span>
-                      {hosp.distance}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-on-surface-variant bg-surface-container-low dark:bg-surface-container-high px-2 py-1 rounded-md border border-outline-variant/10">
-                      <span className="material-symbols-outlined text-[13px] text-primary">payments</span>
-                      {hosp.estimatedCost}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button
-                      onClick={() => navigate('/reviews/wizard', {
-                        state: {
-                          conversationId: msg.conversationId,
-                          recommendationSnapshotId: hosp.id,
-                          hospitalName: hosp.hospitalName,
-                          estimatedCost: hosp.estimatedCost
-                        }
-                      })}
-                      className="text-primary hover:text-secondary font-bold transition-colors cursor-pointer hover:underline text-xs flex items-center gap-0.5"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">rate_review</span>
-                      Review
-                    </button>
-                    <button
-                      onClick={() => navigate(`/hospitals/${hosp.id || hosp.hospitalName}`, { state: { hospital: hosp } })}
-                      className="text-secondary hover:text-primary font-bold transition-colors cursor-pointer hover:underline text-xs flex items-center gap-0.5"
-                    >
-                      View Details &rarr;
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -174,7 +65,10 @@ export function ChatPage() {
     streamText,
     streamStatus,
     error,
+    isPolling,
+    discoveryProgress,
     selectConversation,
+    startNewConsultation,
     sendUserMessage,
     retryLastMessage,
     dismissError,
@@ -192,12 +86,16 @@ export function ChatPage() {
 
   // Sync route param with conversation state
   useEffect(() => {
-    if (conversationId && conversationId !== "new") {
-      selectConversation(conversationId);
-    } else {
-      selectConversation(null);
+    if (conversationId === "new") {
+      if (activeId && !isStreaming && activeId !== activeConversation?.conversation?.id) {
+        startNewConsultation();
+      }
+    } else if (conversationId && conversationId !== "new") {
+      if (activeId !== conversationId) {
+        selectConversation(conversationId);
+      }
     }
-  }, [conversationId, selectConversation]);
+  }, [conversationId, activeId, activeConversation, isStreaming, startNewConsultation, selectConversation]);
 
   // Show location modal for new consultations
   useEffect(() => {
@@ -273,24 +171,22 @@ export function ChatPage() {
     }
     const msg = input;
     setInput("");
-    await sendUserMessage(msg);
-  }, [input, isStreaming, sendUserMessage, conversationId, activeId, selectedLocation]);
+    const newId = await sendUserMessage(msg);
+    if (newId && conversationId === "new") {
+      navigate(`/chat/${newId}`, { replace: true });
+    }
+  }, [input, isStreaming, sendUserMessage, conversationId, activeId, selectedLocation, navigate]);
 
   const handleChipClick = useCallback((text) => {
     setInput(text);
   }, []);
 
-  // If a new conversation gets created in background, update URL route
-  useEffect(() => {
-    if (conversationId === "new" && activeId) {
-      navigate(`/chat/${activeId}`, { replace: true });
-    }
-  }, [activeId, conversationId, navigate]);
+  const isNewRoute = conversationId === "new";
 
   // Helper to parse symptoms list
-  const symptomsList = activeConversation?.patientContext?.symptoms
+  const symptomsList = (!isNewRoute && activeConversation?.patientContext?.symptoms)
     ? activeConversation.patientContext.symptoms.split(",").map(s => s.trim()).filter(Boolean)
-    : [];
+    : (isNewRoute && activeConversation?.patientContext?.symptoms ? activeConversation.patientContext.symptoms.split(",").map(s => s.trim()).filter(Boolean) : []);
 
   const welcomeMessages = [
     {
@@ -302,7 +198,10 @@ export function ChatPage() {
     },
   ];
 
-  const messages = activeConversation?.messages || (conversationId === "new" ? welcomeMessages : []);
+  const messages = isNewRoute
+    ? (activeConversation?.messages?.length ? activeConversation.messages : welcomeMessages)
+    : (activeConversation?.messages || []);
+
   const context = activeConversation?.patientContext || { symptoms: "", age: null, location: "", isContextComplete: false };
   const recommendations = activeConversation?.recommendationSnapshots || [];
 
@@ -370,7 +269,7 @@ export function ChatPage() {
             </div>
           )}
 
-          {!loadingActive && messages.map((msg, index) => (
+          {(!loadingActive || messages.length > 0) && messages.map((msg, index) => (
             <ChatMessage
               key={msg.id || index}
               msg={msg}
@@ -383,38 +282,20 @@ export function ChatPage() {
 
           {/* Streaming Bubble */}
           {isStreaming && streamText && (
-            <div className="flex gap-4 max-w-[85%] animate-fade-in">
-              <div className="w-9 h-9 rounded-xl bg-primary text-on-primary flex-shrink-0 flex items-center justify-center shadow-md relative" aria-hidden="true">
-                <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  robot_2
-                </span>
-                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-secondary rounded-full border border-surface animate-pulse"></div>
-              </div>
-              <div className="premium-glass-card rounded-2xl rounded-tl-sm p-4 text-on-surface shadow-md border border-outline-variant/15">
-                <p className="text-body-md font-body-md whitespace-pre-wrap leading-relaxed">{streamText}</p>
-              </div>
-            </div>
+            <StreamingMessage
+              text={streamText}
+              conversationId={activeId}
+            />
           )}
 
-          {/* Typing animation block */}
+          {/* Typing / Thinking Animation Block */}
           {isStreaming && !streamText && (
-            <div className="flex gap-4 max-w-[85%] animate-fade-in" aria-live="polite">
-              <div className="w-9 h-9 rounded-xl bg-primary text-on-primary flex-shrink-0 flex items-center justify-center shadow-md relative" aria-hidden="true">
-                <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  robot_2
-                </span>
-              </div>
-              <div className="premium-glass-card rounded-2xl rounded-tl-sm p-4 text-on-surface shadow-md border border-outline-variant/15">
-                <p className="text-body-md font-bold text-on-surface-variant flex items-center gap-1.5">
-                  Analyzing symptoms
-                  <span className="flex gap-1 items-end ml-1 h-4" aria-hidden="true">
-                    <span className="w-1.5 h-1.5 bg-secondary rounded-full typing-dot"></span>
-                    <span className="w-1.5 h-1.5 bg-secondary rounded-full typing-dot"></span>
-                    <span className="w-1.5 h-1.5 bg-secondary rounded-full typing-dot"></span>
-                  </span>
-                </p>
-              </div>
-            </div>
+            <AIThinkingMessage statusText={streamStatus} />
+          )}
+
+          {/* Discovery Polling Progress Card */}
+          {isPolling && (
+            <DiscoveryProgressCard progress={discoveryProgress} />
           )}
 
           <div ref={messagesEndRef} />

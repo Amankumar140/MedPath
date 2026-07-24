@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import conversationService from "../services/conversation.service";
 import { useAuth } from "./AuthContext";
 import { usePatientLocation } from "./LocationContext";
@@ -17,6 +17,20 @@ export function ConversationProvider({ children }) {
   const [streamText, setStreamText] = useState("");
   const [streamStatus, setStreamStatus] = useState("");
   const [error, setError] = useState(null);
+
+  // Polling States
+  const [isPolling, setIsPolling] = useState(false);
+  const [discoveryProgress, setDiscoveryProgress] = useState(null);
+  const pollIntervalRef = useRef(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    setIsPolling(false);
+    setDiscoveryProgress(null);
+  }, []);
 
   const loadConversations = useCallback(async () => {
     if (!user) return;
@@ -38,19 +52,83 @@ export function ConversationProvider({ children }) {
     }
   }, [user]);
 
+  const startDiscoveryPolling = useCallback((convoId) => {
+    stopPolling();
+    setIsPolling(true);
+    setDiscoveryProgress({
+      progress: 0,
+      status: "running",
+      current_stage: "Planning",
+      percentage: 0
+    });
+
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const res = await conversationService.getDiscoveryProgress(convoId);
+        if (res && res.success && res.data) {
+          const data = res.data;
+          setDiscoveryProgress(data);
+          
+          if (data.status === "completed" || data.progress === 100) {
+            stopPolling();
+            // Reload conversation details to capture final AI recommendations and messages
+            const refreshed = await conversationService.getConversationDetails(convoId);
+            if (refreshed && refreshed.success) {
+              setActiveConversation(refreshed.data);
+            }
+            await loadConversations();
+          } else if (data.status === "failed") {
+            stopPolling();
+            setError("Hospital discovery failed. Please try again.");
+          }
+        }
+      } catch (err) {
+        console.error("Error polling discovery progress:", err);
+      }
+    }, 2000);
+  }, [stopPolling, loadConversations]);
+
   const selectConversation = useCallback(async (id) => {
+    stopPolling();
     if (!id) {
       setActiveConversation(null);
       setActiveId(null);
+      setLoadingActive(false);
+      setStreamText("");
+      setStreamStatus("");
+      setIsStreaming(false);
+      setError(null);
       return;
     }
-    setLoadingActive(true);
+
+    // If conversation is already loaded in memory and matches activeId, avoid blank screen reload
+    if (activeId === id && activeConversation?.conversation?.id === id && activeConversation?.messages?.length > 0) {
+      return;
+    }
+
+    // Don't show full loading skeleton if we already have the conversation active
+    if (activeId !== id) {
+      setLoadingActive(true);
+    }
     setActiveId(id);
     setError(null);
     try {
       const response = await conversationService.getConversationDetails(id);
       if (response && response.success) {
-        setActiveConversation(response.data);
+        // Merge optimistic messages if current conversation was recently created
+        setActiveConversation(prev => {
+          if (prev && prev.conversation?.id === id && prev.messages?.length > response.data?.messages?.length) {
+            return {
+              ...response.data,
+              messages: prev.messages,
+            };
+          }
+          return response.data;
+        });
+        // Auto-resume polling if discovery task is active
+        if (response.data.conversation?.taskId && response.data.conversation?.status === "ACTIVE") {
+          startDiscoveryPolling(id);
+        }
       }
     } catch (e) {
       console.error("Failed to select conversation:", e);
@@ -58,16 +136,18 @@ export function ConversationProvider({ children }) {
     } finally {
       setLoadingActive(false);
     }
-  }, []);
+  }, [activeId, activeConversation, startDiscoveryPolling, stopPolling]);
 
-  const startNewConsultation = () => {
+  const startNewConsultation = useCallback(() => {
+    stopPolling();
     setActiveConversation(null);
     setActiveId(null);
+    setLoadingActive(false);
     setStreamText("");
     setStreamStatus("");
     setIsStreaming(false);
     setError(null);
-  };
+  }, [stopPolling]);
 
   const deleteConversation = async (id) => {
     try {
@@ -93,23 +173,34 @@ export function ConversationProvider({ children }) {
       setError(null);
       try {
         const response = await conversationService.createConversation(
-          messageText.length > 30 ? messageText.substring(0, 30) + "..." : messageText
+          messageText.length > 30 ? messageText.substring(0, 30) + "..." : messageText,
+          selectedLocation // Pass location context to creation
         );
         if (response && response.success) {
           currentId = response.data.id;
           setActiveId(currentId);
           // Pre-populate active conversation with the user message and selected location
+          const welcomeMsg = {
+            id: "welcome-1",
+            sender: "AI",
+            message: `Hello, ${user?.displayName || "there"}. I am your MedPath AI Assistant. I can analyze your symptoms and search local clinical departments. What symptoms are you experiencing today?`,
+            messageType: "TEXT",
+            createdAt: new Date().toISOString(),
+          };
+
+          const userMsg = {
+            id: `msg-usr-${Date.now()}`,
+            sender: "USER",
+            message: messageText,
+            messageType: "TEXT",
+            createdAt: new Date().toISOString(),
+          };
+
           setActiveConversation({
             conversation: response.data,
-            messages: [{
-              id: "temp-user-msg",
-              sender: "USER",
-              message: messageText,
-              messageType: "TEXT",
-              createdAt: new Date().toISOString(),
-            }],
+            messages: [welcomeMsg, userMsg],
             patientContext: {
-              symptoms: "",
+              symptoms: messageText,
               age: null,
               durationDays: null,
               location: selectedLocation?.city || selectedLocation?.formattedAddress || "",
@@ -159,9 +250,10 @@ export function ConversationProvider({ children }) {
     setStreamStatus("Initializing triage checks...");
     setError(null);
 
-    await conversationService.sendMessageStream(
+    conversationService.sendMessageStream(
       currentId,
       messageText,
+      selectedLocation, // Attach current location metadata automatically!
       (chunk) => {
         // Callback on each SSE chunk
         if (chunk.type === "status") {
@@ -175,8 +267,18 @@ export function ConversationProvider({ children }) {
         setIsStreaming(false);
         setStreamText("");
         setStreamStatus("");
-        await selectConversation(currentId);
-        await loadConversations();
+        
+        // Reload details and check if discovery is triggered
+        const refreshed = await conversationService.getConversationDetails(currentId);
+        if (refreshed && refreshed.success) {
+          setActiveConversation(refreshed.data);
+          // If taskId exists and conversation status is ACTIVE, start polling!
+          if (refreshed.data.conversation?.taskId && refreshed.data.conversation?.status === "ACTIVE") {
+            startDiscoveryPolling(currentId);
+          } else {
+            await loadConversations();
+          }
+        }
       },
       (streamError) => {
         // Callback on error
@@ -201,7 +303,7 @@ export function ConversationProvider({ children }) {
               {
                 id: `msg-err-${Date.now()}`,
                 sender: "SYSTEM",
-                message: `⚠️ AI Navigator is temporarily unavailable. This could mean the Python microservice is not running. Please try again shortly.`,
+                message: `⚠️ AI Navigator is temporarily unavailable. Please try again shortly.`,
                 messageType: "TEXT",
                 createdAt: new Date().toISOString(),
               },
@@ -210,6 +312,7 @@ export function ConversationProvider({ children }) {
         });
       }
     );
+    return currentId;
   };
 
   const retryLastMessage = async () => {
@@ -239,6 +342,7 @@ export function ConversationProvider({ children }) {
       await conversationService.sendMessageStream(
         activeId,
         lastUserMsg.message,
+        selectedLocation, // Attach current location metadata automatically!
         (chunk) => {
           if (chunk.type === "status") {
             setStreamStatus(chunk.message);
@@ -250,8 +354,16 @@ export function ConversationProvider({ children }) {
           setIsStreaming(false);
           setStreamText("");
           setStreamStatus("");
-          await selectConversation(activeId);
-          await loadConversations();
+          
+          const refreshed = await conversationService.getConversationDetails(activeId);
+          if (refreshed && refreshed.success) {
+            setActiveConversation(refreshed.data);
+            if (refreshed.data.conversation?.taskId && refreshed.data.conversation?.status === "ACTIVE") {
+              startDiscoveryPolling(activeId);
+            } else {
+              await loadConversations();
+            }
+          }
         },
         (streamError) => {
           console.error("Retry SSE Streaming Error:", streamError);
@@ -276,6 +388,15 @@ export function ConversationProvider({ children }) {
     }
   }, [user, loadConversations]);
 
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
+
   return (
     <ConversationContext.Provider value={{
       conversations,
@@ -287,6 +408,8 @@ export function ConversationProvider({ children }) {
       streamText,
       streamStatus,
       error,
+      isPolling,
+      discoveryProgress,
       loadConversations,
       selectConversation,
       startNewConsultation,
