@@ -9,7 +9,7 @@ This documentation outlines the design, architecture, database models, and API i
 - **Purpose**: Collect real-world patient outcomes (actual costs, waiting times, and ratings) linked directly to recommendations generated during AI triage consultations.
 - **Constraints**:
   - **No Dynamic Reranking**: Under no circumstances should this review system dynamically modify AI search rankings or recommendations.
-  - **Data Accumulation**: Ratings and reviews are stored for model calibration. The Python/AI research team may ingest this structured feedback for offline model training in the future.
+  - **Data Accumulation**: Ratings and reviews are stored for model calibration. The Swasthya/AI research team may ingest this structured feedback for offline model training in the future.
 
 ---
 

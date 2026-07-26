@@ -4,6 +4,7 @@ import { useConversations } from "../context/ConversationContext";
 import { SkeletonHospitalCard } from "../components/SkeletonLoader";
 import { ReviewsDashboardPage } from "./ReviewsDashboardPage";
 import { Card, Button, Badge, EmptyState } from "../components/ui";
+import { formatEstimatedCost } from "../components/chat/TypingBubble";
 
 export function RecommendationsPage() {
   const location = useLocation();
@@ -293,7 +294,7 @@ export function RecommendationsPage() {
                         <div className="flex flex-wrap gap-2.5 pt-1">
                           <div className="flex items-center gap-1.5 text-label-sm font-bold text-on-surface-variant bg-surface-container-low dark:bg-surface-container px-3 py-1.5 rounded-xl border border-outline-variant/10">
                             <span className="material-symbols-outlined text-[16px] text-secondary" aria-hidden="true">route</span>
-                            <span>{hosp.distance}</span>
+                            <span>{hosp.distance && hosp.distance !== 'Unknown' ? hosp.distance : 'Nearby'}</span>
                           </div>
 
                           <div className="flex items-center gap-1.5 text-label-sm font-bold text-on-surface-variant bg-surface-container-low dark:bg-surface-container px-3 py-1.5 rounded-xl border border-outline-variant/10">
@@ -303,7 +304,7 @@ export function RecommendationsPage() {
 
                           <div className="flex items-center gap-1.5 text-label-sm font-bold text-on-surface-variant bg-surface-container-low dark:bg-surface-container px-3 py-1.5 rounded-xl border border-outline-variant/10">
                             <span className="material-symbols-outlined text-[16px] text-primary" aria-hidden="true">payments</span>
-                            <span>Cost: {hosp.estimatedCost}</span>
+                            <span>Cost: {formatEstimatedCost(hosp.estimatedCost)}</span>
                           </div>
                         </div>
                       </div>

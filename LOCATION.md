@@ -120,14 +120,14 @@ ConversationContext creates conversation
         ↓
 PatientContext initialized with location fields
         ↓
-Python microservice receives location in triage context
+Swasthya AI Core API receives location in triage context
         ↓
 AI uses location for hospital proximity search
 ```
 
-### Python Microservice
+### Swasthya AI Core API
 
-The Python `PatientContext` schema includes passthrough fields:
+The Swasthya `PatientContext` schema includes passthrough fields:
 - `latitude` (Optional[float])
 - `longitude` (Optional[float])
 - `formatted_address` (Optional[str])

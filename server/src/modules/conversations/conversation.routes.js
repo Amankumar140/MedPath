@@ -40,6 +40,13 @@ router.post(
   conversationController.sendMessage
 );
 
+// Get discovery progress
+router.get(
+  '/:id/discovery/progress',
+  validate({ params: conversationIdSchema }),
+  conversationController.getDiscoveryProgress
+);
+
 // Soft delete conversation
 router.delete(
   '/:id',

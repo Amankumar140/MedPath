@@ -138,6 +138,10 @@ async function updatePatientContext(conversationId, contextData) {
         budget: contextData.budget,
         detectedLanguage: contextData.detectedLanguage,
         isContextComplete: contextData.isContextComplete,
+        contextId: contextData.contextId,
+        sessionVersion: contextData.sessionVersion,
+        contextData: contextData.contextData,
+        taskId: contextData.taskId,
       },
     });
   } catch (error) {
@@ -213,6 +217,147 @@ async function findRecommendationSnapshotsByConversationId(conversationId) {
   }
 }
 
+/**
+ * Finds a completed context match within a specific time window.
+ * @param {string} symptoms - Symptoms string.
+ * @param {string} city - City name.
+ * @param {number} latitude - Latitude coordinate.
+ * @param {number} longitude - Longitude coordinate.
+ * @param {number} timeWindowHours - Hours to look back.
+ * @returns {Promise<Object|null>} The matching patient context or null.
+ */
+async function findCompletedContextMatch(symptoms, city, latitude, longitude, timeWindowHours = 4) {
+  try {
+    const timeLimit = new Date(Date.now() - timeWindowHours * 60 * 60 * 1000);
+    const candidates = await prisma.patientContext.findMany({
+      where: {
+        isContextComplete: true,
+        updatedAt: {
+          gte: timeLimit,
+        },
+        conversation: {
+          status: 'COMPLETED',
+        },
+      },
+      include: {
+        conversation: {
+          include: {
+            messages: {
+              where: {
+                messageType: 'FINAL',
+              },
+              orderBy: {
+                createdAt: 'desc',
+              },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+
+    const normalizeSymptoms = (s) => (s || '').toLowerCase().split(',').map(x => x.trim()).filter(Boolean).sort().join(',');
+    const targetSymptoms = normalizeSymptoms(symptoms);
+    const targetCity = (city || '').toLowerCase().trim();
+
+    for (const c of candidates) {
+      const candidateSymptoms = normalizeSymptoms(c.symptoms);
+      if (candidateSymptoms !== targetSymptoms) continue;
+
+      const candidateCity = (c.city || '').toLowerCase().trim();
+      if (candidateCity && targetCity && candidateCity === targetCity) {
+        return c;
+      }
+      if (c.latitude && c.longitude && latitude && longitude) {
+        const latDiff = Math.abs(c.latitude - latitude);
+        const lngDiff = Math.abs(c.longitude - longitude);
+        if (latDiff <= 0.02 && lngDiff <= 0.02) {
+          return c;
+        }
+      }
+    }
+    return null;
+  } catch (error) {
+    throw handlePrismaError(error);
+  }
+}
+
+/**
+ * Reuses results from a previously completed discovery task for a new conversation.
+ * Copies snapshots, status, and AI final message in a single transaction.
+ * @param {string} sourceConvoId - The source conversation ID to copy results from.
+ * @param {string} targetConvoId - The target conversation ID.
+ * @param {string} summaryMsg - The final AI response message to write.
+ */
+async function reuseCompletedDiscovery(sourceConvoId, targetConvoId, summaryMsg) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const recommendations = await tx.recommendationSnapshot.findMany({
+        where: { conversationId: sourceConvoId },
+      });
+
+      await tx.conversation.update({
+        where: { id: targetConvoId },
+        data: {
+          status: 'COMPLETED',
+          updatedAt: new Date(),
+        },
+      });
+
+      await tx.patientContext.update({
+        where: { conversationId: targetConvoId },
+        data: {
+          isContextComplete: true,
+          updatedAt: new Date(),
+        },
+      });
+
+      for (const hosp of recommendations) {
+        await tx.recommendationSnapshot.create({
+          data: {
+            conversationId: targetConvoId,
+            hospitalName: hosp.hospitalName,
+            rankingPosition: hosp.rankingPosition,
+            confidenceScore: hosp.confidenceScore,
+            trustScore: hosp.trustScore,
+            estimatedCost: hosp.estimatedCost,
+            distance: hosp.distance,
+            latitude: hosp.latitude,
+            longitude: hosp.longitude,
+            reason: hosp.reason,
+            source: hosp.source,
+            summary: hosp.summary,
+            pros: hosp.pros,
+            cons: hosp.cons,
+            overallScore: hosp.overallScore,
+            travelTime: hosp.travelTime,
+            website: hosp.website,
+            phone: hosp.phone,
+            address: hosp.address,
+            hospitalType: hosp.hospitalType,
+            accreditations: hosp.accreditations,
+            reviewCount: hosp.reviewCount,
+            hasEmergency: hosp.hasEmergency,
+            hasIcu: hosp.hasIcu,
+            estimatedCostRange: hosp.estimatedCostRange,
+          },
+        });
+      }
+
+      await tx.conversationMessage.create({
+        data: {
+          conversationId: targetConvoId,
+          sender: 'AI',
+          message: summaryMsg,
+          messageType: 'FINAL',
+        },
+      });
+    });
+  } catch (error) {
+    throw handlePrismaError(error);
+  }
+}
+
 module.exports = {
   createConversation,
   findConversationById,
@@ -223,4 +368,6 @@ module.exports = {
   updateConversation,
   createRecommendationSnapshot,
   findRecommendationSnapshotsByConversationId,
+  findCompletedContextMatch,
+  reuseCompletedDiscovery,
 };

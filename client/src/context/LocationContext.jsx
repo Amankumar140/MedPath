@@ -76,12 +76,18 @@ export function LocationProvider({ children }) {
 
   const selectLocation = useCallback((location) => {
     setSelectedLocation(location);
+    if (user && location) {
+      localStorage.setItem(`medpath_location_${user.id}`, JSON.stringify(location));
+    }
     setError(null);
-  }, []);
+  }, [user]);
 
   const clearSelectedLocation = useCallback(() => {
     setSelectedLocation(null);
-  }, []);
+    if (user) {
+      localStorage.removeItem(`medpath_location_${user.id}`);
+    }
+  }, [user]);
 
   const requestGPSLocation = useCallback(async () => {
     if (!navigator.geolocation) {
@@ -97,63 +103,84 @@ export function LocationProvider({ children }) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           setGpsStatus("granted");
-          const { latitude, longitude } = position.coords;
+          const { latitude, longitude, accuracy } = position.coords;
+          const timestamp = position.timestamp;
+
+          let loc = {
+            latitude,
+            longitude,
+            accuracy,
+            timestamp,
+            label: "Current Location",
+          };
 
           try {
-            // 1. Try Nominatim directly from the client side for maximum resilience (independent of Node server status)
             const geoRes = await fetch(
               `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
               {
                 headers: {
                   'Accept-Language': 'en',
+                  'User-Agent': 'MedPath-Healthcare-App/1.0',
                 },
               }
             );
             if (geoRes.ok) {
               const data = await geoRes.json();
               const address = data.address || {};
-              const loc = {
+              loc = {
+                ...loc,
                 formattedAddress: data.display_name || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
                 city: address.city || address.town || address.village || address.county || null,
                 state: address.state || null,
                 country: address.country || null,
                 postalCode: address.postcode || null,
-                latitude,
-                longitude,
-                label: "Current Location",
               };
-              setSelectedLocation(loc);
-              resolve(loc);
-              return;
             }
           } catch (err) {
             console.warn("Direct geocoding failed, trying backend service...", err);
           }
 
-          try {
-            // 2. Fallback: call backend geocoding service
-            const response = await locationService.resolveCurrentLocation(latitude, longitude);
-            if (response && response.success) {
-              const loc = {
-                ...response.data,
-                label: "Current Location",
-              };
-              setSelectedLocation(loc);
-              resolve(loc);
-            } else {
-              throw new Error("Invalid backend response");
+          if (!loc.formattedAddress) {
+            try {
+              const response = await locationService.resolveCurrentLocation(latitude, longitude);
+              if (response && response.success) {
+                loc = {
+                  ...loc,
+                  ...response.data,
+                };
+              }
+            } catch (e) {
+              console.error("Reverse geocoding failed on backend:", e);
+              loc.formattedAddress = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
             }
-          } catch (e) {
-            console.error("Reverse geocoding failed on both client and backend:", e);
-            const fallback = {
-              latitude,
-              longitude,
-              formattedAddress: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
-              label: "Current Location",
-            };
-            setSelectedLocation(fallback);
-            resolve(fallback);
           }
+
+          setSelectedLocation(loc);
+          if (user) {
+            localStorage.setItem(`medpath_location_${user.id}`, JSON.stringify(loc));
+            // Save to user profile in backend as default
+            try {
+              await locationService.createLocation({
+                label: loc.label || "Current Location",
+                formattedAddress: loc.formattedAddress || `${loc.latitude}, ${loc.longitude}`,
+                latitude: loc.latitude || null,
+                longitude: loc.longitude || null,
+                city: loc.city || null,
+                state: loc.state || null,
+                country: loc.country || null,
+                postalCode: loc.postalCode || null,
+                isDefault: true,
+              });
+              // Reload locations
+              const savedRes = await locationService.listLocations();
+              if (savedRes && savedRes.success) {
+                setSavedLocations(savedRes.data);
+              }
+            } catch (e) {
+              console.error("Failed to save automatic location in user profile:", e);
+            }
+          }
+          resolve(loc);
         },
         (err) => {
           switch (err.code) {
@@ -178,25 +205,141 @@ export function LocationProvider({ children }) {
         },
         {
           enableHighAccuracy: false,
-          timeout: 15000,
-          maximumAge: 300000, // 5 minutes cache
+          timeout: 10000,
         }
       );
     });
-  }, []);
+  }, [user]);
 
   const dismissError = useCallback(() => setError(null), []);
 
-  // Load saved locations when user is authenticated
+  // Automatic geolocate flow on login / app launch
   useEffect(() => {
-    if (user) {
-      loadSavedLocations();
-    } else {
+    if (!user) {
       setSavedLocations([]);
       setSelectedLocation(null);
       setGpsStatus("idle");
+      return;
     }
-  }, [user, loadSavedLocations]);
+
+    const checkAndRequestLocation = async () => {
+      setLoadingLocations(true);
+      try {
+        // 1. Fetch saved locations from backend
+        const response = await locationService.listLocations();
+        let defaultLoc = null;
+        if (response && response.success && response.data) {
+          setSavedLocations(response.data);
+          defaultLoc = response.data.find(loc => loc.isDefault);
+        }
+
+        // 2. Check localStorage cache
+        const cached = localStorage.getItem(`medpath_location_${user.id}`);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            setSelectedLocation(parsed);
+            setGpsStatus("granted");
+            setLoadingLocations(false);
+            return;
+          } catch (e) {
+            console.error("Error parsing cached location", e);
+          }
+        }
+
+        // 3. Use default saved location if found
+        if (defaultLoc) {
+          setSelectedLocation(defaultLoc);
+          setGpsStatus("granted");
+          localStorage.setItem(`medpath_location_${user.id}`, JSON.stringify(defaultLoc));
+          setLoadingLocations(false);
+          return;
+        }
+
+        // 4. Auto request browser GPS permission if not already denied
+        if (navigator.geolocation) {
+          try {
+            const perm = await navigator.permissions.query({ name: 'geolocation' });
+            if (perm.state === 'denied') {
+              setGpsStatus("denied");
+              setLoadingLocations(false);
+              return;
+            }
+          } catch (e) {
+            // navigator.permissions unsupported, fall through
+          }
+          await requestGPSLocation();
+        } else {
+          setGpsStatus("unavailable");
+        }
+      } catch (err) {
+        console.error("Error in checkAndRequestLocation:", err);
+      } finally {
+        setLoadingLocations(false);
+      }
+    };
+
+    checkAndRequestLocation();
+  }, [user, requestGPSLocation]);
+
+  // Periodic location refresh every 30 minutes while app is active
+  useEffect(() => {
+    if (!user || gpsStatus !== "granted") return;
+
+    const intervalId = setInterval(() => {
+      console.log("Refreshing browser GPS location (30-minute interval)...");
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          const timestamp = position.timestamp;
+
+          let loc = {
+            latitude,
+            longitude,
+            accuracy,
+            timestamp,
+            label: "Current Location",
+          };
+
+          try {
+            const geoRes = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
+              {
+                headers: {
+                  'Accept-Language': 'en',
+                  'User-Agent': 'MedPath-Healthcare-App/1.0',
+                },
+              }
+            );
+            if (geoRes.ok) {
+              const data = await geoRes.json();
+              const address = data.address || {};
+              loc = {
+                ...loc,
+                formattedAddress: data.display_name || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+                city: address.city || address.town || address.village || address.county || null,
+                state: address.state || null,
+                country: address.country || null,
+                postalCode: address.postcode || null,
+              };
+            }
+          } catch (err) {
+            console.warn("Direct reverse geocode refresh failed", err);
+            loc.formattedAddress = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          }
+
+          setSelectedLocation(loc);
+          localStorage.setItem(`medpath_location_${user.id}`, JSON.stringify(loc));
+        },
+        (err) => {
+          console.warn("GPS interval refresh failed:", err.message);
+        },
+        { enableHighAccuracy: false, timeout: 10000 }
+      );
+    }, 1800000); // 30 minutes
+
+    return () => clearInterval(intervalId);
+  }, [user, gpsStatus]);
 
   return (
     <LocationContext.Provider value={{

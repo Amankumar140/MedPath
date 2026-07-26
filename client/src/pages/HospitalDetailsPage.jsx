@@ -1,10 +1,16 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Card, Button, ProgressBar, EmptyState } from "../components/ui";
+import { Card, Button, Badge, ProgressBar, EmptyState } from "../components/ui";
+import { formatEstimatedCost } from "../components/chat/TypingBubble";
 
 export function HospitalDetailsPage() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Scroll to top when page opens
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const hospital = location.state?.hospital;
 
@@ -27,7 +33,7 @@ export function HospitalDetailsPage() {
   }
 
   return (
-    <div className="flex-grow p-4 md:p-6 bg-surface-bright dark:bg-background overflow-y-auto max-w-container-max mx-auto w-full animate-slide-up" role="main" aria-label={`Hospital details: ${hospital.hospitalName}`}>
+    <div className="flex-grow p-4 md:p-6 bg-surface-bright dark:bg-background overflow-y-auto max-w-container-max mx-auto w-full animate-fade-in" role="main" aria-label={`Hospital details: ${hospital.hospitalName}`}>
       {/* Back button */}
       <button
         onClick={() => navigate(-1)}
@@ -45,63 +51,131 @@ export function HospitalDetailsPage() {
         <div className="lg:col-span-2 space-y-6">
 
           {/* Main Card */}
-          <Card variant="glass" className="p-6 md:p-8 border border-outline-variant/15 space-y-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-headline-lg font-bold text-primary dark:text-primary-fixed leading-snug">
-                {hospital.hospitalName}
-              </h2>
-              {hospital.source && (
-                <span className="bg-tertiary-container/30 text-on-tertiary-container dark:text-tertiary px-3.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border border-tertiary/10">
-                  {hospital.source}
-                </span>
+          <Card variant="glass" className="p-6 md:p-8 border border-outline-variant/15 space-y-6">
+            <div className="flex flex-wrap items-center gap-3 justify-between">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-headline-lg font-bold text-primary dark:text-primary-fixed leading-snug">
+                  {hospital.hospitalName}
+                </h2>
+                {hospital.hospitalType && (
+                  <Badge variant="neutral" className="capitalize">
+                    {hospital.hospitalType}
+                  </Badge>
+                )}
+                {hospital.source && (
+                  <span className="bg-tertiary-container/30 text-on-tertiary-container dark:text-tertiary px-3.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border border-tertiary/10">
+                    {hospital.source}
+                  </span>
+                )}
+              </div>
+
+              {hospital.accreditations && hospital.accreditations.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {hospital.accreditations.map((acc, i) => (
+                    <span key={i} className="bg-secondary-container/30 text-secondary border border-secondary/20 px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider">
+                      {acc}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
+
+            {/* Summary */}
+            {hospital.summary && (
+              <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant/15 italic text-on-surface-variant font-medium text-body-md">
+                " {hospital.summary} "
+              </div>
+            )}
 
             <p className="text-body-lg text-on-surface leading-relaxed font-medium">
               {hospital.reason}
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-5 border-t border-outline-variant/15">
-              <div className="space-y-3.5">
-                <h4 className="text-label-sm font-bold text-primary dark:text-primary-fixed uppercase tracking-wider">
-                  Key Information
-                </h4>
-                <ul className="space-y-3 text-body-md text-on-surface font-semibold">
-                  <li className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-secondary text-[20px]" aria-hidden="true">route</span>
-                    <span>Distance: {hospital.distance}</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-secondary text-[20px]" aria-hidden="true">payments</span>
-                    <span>Estimated Cost: {hospital.estimatedCost}</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-secondary text-[20px]" aria-hidden="true">star</span>
-                    <span>Trust Score: {hospital.trustScore} / 5.0</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="space-y-3.5">
-                <h4 className="text-label-sm font-bold text-primary dark:text-primary-fixed uppercase tracking-wider">
-                  Capabilities
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  <span className="bg-surface-container-low text-on-surface px-3 py-1.5 rounded-xl text-label-sm font-semibold border border-outline-variant/10 flex items-center gap-1.5 shadow-sm">
-                    <span className="material-symbols-outlined text-[16px] text-tertiary animate-pulse" aria-hidden="true">check_circle</span>
-                    Emergency Care
-                  </span>
-                  <span className="bg-surface-container-low text-on-surface px-3 py-1.5 rounded-xl text-label-sm font-semibold border border-outline-variant/10 flex items-center gap-1.5 shadow-sm">
-                    <span className="material-symbols-outlined text-[16px] text-tertiary animate-pulse" aria-hidden="true">check_circle</span>
-                    ICU Available
-                  </span>
-                  <span className="bg-surface-container-low text-on-surface px-3 py-1.5 rounded-xl text-label-sm font-semibold border border-outline-variant/10 flex items-center gap-1.5 shadow-sm">
-                    <span className="material-symbols-outlined text-[16px] text-tertiary animate-pulse" aria-hidden="true">check_circle</span>
-                    Insurance Accepted
-                  </span>
-                </div>
+            {/* Capabilities badges */}
+            <div className="pt-5 border-t border-outline-variant/15 space-y-3">
+              <h4 className="text-label-sm font-bold text-primary dark:text-primary-fixed uppercase tracking-wider">
+                Capabilities
+              </h4>
+              <div className="flex flex-wrap gap-2.5">
+                <span className={`px-3 py-1.5 rounded-xl text-label-sm font-semibold border flex items-center gap-1.5 shadow-sm ${
+                  hospital.hasEmergency !== false
+                    ? "bg-tertiary/10 text-tertiary border-tertiary/20"
+                    : "bg-outline-variant/10 text-outline border-outline-variant/15"
+                }`}>
+                  <span className="material-symbols-outlined text-[16px]">{hospital.hasEmergency !== false ? "check_circle" : "cancel"}</span>
+                  Emergency Care
+                </span>
+                <span className={`px-3 py-1.5 rounded-xl text-label-sm font-semibold border flex items-center gap-1.5 shadow-sm ${
+                  hospital.hasIcu !== false
+                    ? "bg-tertiary/10 text-tertiary border-tertiary/20"
+                    : "bg-outline-variant/10 text-outline border-outline-variant/15"
+                }`}>
+                  <span className="material-symbols-outlined text-[16px]">{hospital.hasIcu !== false ? "check_circle" : "cancel"}</span>
+                  ICU Available
+                </span>
+                <span className="bg-tertiary/10 text-tertiary border-tertiary/20 px-3 py-1.5 rounded-xl text-label-sm font-semibold border flex items-center gap-1.5 shadow-sm">
+                  <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                  Insurance Accepted
+                </span>
               </div>
             </div>
+
+            {/* Pros & Cons */}
+            {((hospital.pros && hospital.pros.length > 0) || (hospital.cons && hospital.cons.length > 0)) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-5 border-t border-outline-variant/15">
+                {hospital.pros && hospital.pros.length > 0 && (
+                  <div className="space-y-2.5">
+                    <h4 className="text-label-sm font-bold text-tertiary uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px] text-tertiary">thumb_up</span>
+                      Pros
+                    </h4>
+                    <ul className="list-disc pl-5 text-body-md text-on-surface-variant space-y-1 font-medium">
+                      {hospital.pros.map((pro, i) => <li key={i}>{pro}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {hospital.cons && hospital.cons.length > 0 && (
+                  <div className="space-y-2.5">
+                    <h4 className="text-label-sm font-bold text-error uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px] text-error">thumb_down</span>
+                      Cons
+                    </h4>
+                    <ul className="list-disc pl-5 text-body-md text-on-surface-variant space-y-1 font-medium">
+                      {hospital.cons.map((con, i) => <li key={i}>{con}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Contact Details */}
+            {(hospital.phone || hospital.website || hospital.address) && (
+              <div className="space-y-3.5 pt-5 border-t border-outline-variant/15">
+                <h4 className="text-label-sm font-bold text-primary dark:text-primary-fixed uppercase tracking-wider">
+                  Contact & Location Details
+                </h4>
+                <ul className="space-y-3 text-body-md text-on-surface font-semibold">
+                  {hospital.address && (
+                    <li className="flex items-start gap-3">
+                      <span className="material-symbols-outlined text-secondary text-[20px] shrink-0 mt-0.5" aria-hidden="true">location_on</span>
+                      <span className="leading-relaxed">{hospital.address}</span>
+                    </li>
+                  )}
+                  {hospital.phone && (
+                    <li className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-secondary text-[20px]" aria-hidden="true">call</span>
+                      <a href={`tel:${hospital.phone}`} className="text-secondary hover:text-primary hover:underline">{hospital.phone}</a>
+                    </li>
+                  )}
+                  {hospital.website && (
+                    <li className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-secondary text-[20px]" aria-hidden="true">language</span>
+                      <a href={hospital.website} target="_blank" rel="noreferrer" className="text-secondary hover:text-primary hover:underline truncate">{hospital.website}</a>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
           </Card>
 
           {/* Intelligence Score metrics */}
@@ -162,10 +236,22 @@ export function HospitalDetailsPage() {
                 <span className="text-outline">Travel Distance</span>
                 <span className="font-bold text-primary dark:text-primary-fixed">{hospital.distance}</span>
               </div>
+              {hospital.travelTime && (
+                <div className="flex justify-between text-body-md border-b border-outline-variant/10 pb-2">
+                  <span className="text-outline">Travel Time</span>
+                  <span className="font-bold text-primary dark:text-primary-fixed">{hospital.travelTime}</span>
+                </div>
+              )}
               <div className="flex justify-between text-body-md border-b border-outline-variant/10 pb-2">
                 <span className="text-outline">Estimated Out-of-Pocket</span>
-                <span className="font-bold text-primary dark:text-primary-fixed">{hospital.estimatedCost}</span>
+                <span className="font-bold text-primary dark:text-primary-fixed">{formatEstimatedCost(hospital.estimatedCost)}</span>
               </div>
+              {hospital.overallRating && (
+                <div className="flex justify-between text-body-md border-b border-outline-variant/10 pb-2">
+                  <span className="text-outline">Overall Rating</span>
+                  <span className="font-bold text-primary dark:text-primary-fixed">{hospital.overallRating} ★ ({hospital.reviewCount || 0} reviews)</span>
+                </div>
+              )}
               <div className="flex justify-between text-body-md pb-1">
                 <span className="text-outline">Suitability</span>
                 <span className="font-bold text-primary dark:text-primary-fixed">{hospital.source || "Suitable"}</span>

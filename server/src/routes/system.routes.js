@@ -1,6 +1,6 @@
 const express = require('express');
 const { verifyFirebaseToken } = require('../modules/auth/auth.middleware');
-const pythonService = require('../services/python.service');
+const swasthyaService = require('../services/swasthya.service');
 const cacheService = require('../services/cache.service');
 
 const router = express.Router();
@@ -9,8 +9,8 @@ const router = express.Router();
  * @swagger
  * /system/python-health:
  *   get:
- *     summary: Retrieve Python AI service health and orchestration metrics
- *     description: Proxy endpoint verifying the status of the Python microservice. Returns availability status, round-trip latency, software version, and aggregated workflow performance counters. Cached in Redis for 30s.
+ *     summary: Retrieve Swasthya AI Core health and orchestration metrics
+ *     description: Proxy endpoint verifying the status of the Swasthya AI Core API. Returns availability status, round-trip latency, software version, and aggregated workflow performance counters. Cached in Redis for 30s.
  *     tags:
  *       - System
  *     security:
@@ -38,7 +38,7 @@ const router = express.Router();
  *                       example: 45
  *                     version:
  *                       type: string
- *                       example: "1.0.0"
+ *                       example: "1.0.2"
  *                     metrics:
  *                       type: object
  *                       properties:
@@ -54,12 +54,12 @@ const router = express.Router();
  *                         retryCount:
  *                           type: integer
  *                           example: 3
- *                         pythonUptimeSeconds:
+ *                         swasthyaUptimeSeconds:
  *                           type: integer
  *                           example: 1800
  *       401:
  *         description: Unauthorized
- */
+ * */
 router.get('/python-health', verifyFirebaseToken, async (req, res, next) => {
   try {
     const cacheKey = 'system:python-health';
@@ -74,13 +74,26 @@ router.get('/python-health', verifyFirebaseToken, async (req, res, next) => {
     }
 
     // Cache miss - execute health check ping & read metrics
-    const health = await pythonService.getHealth();
-    const metrics = await pythonService.getSystemMetrics();
+    const start = Date.now();
+    let availability = 'DOWN';
+    let latencyMs = 0;
+    let version = '1.0.2';
+
+    try {
+      const healthRes = await swasthyaService.health();
+      availability = healthRes.success && healthRes.data?.status === 'healthy' ? 'UP' : 'DOWN';
+      latencyMs = healthRes.latencyMs || (Date.now() - start);
+    } catch (err) {
+      availability = 'DOWN';
+      latencyMs = Date.now() - start;
+    }
+
+    const metrics = await swasthyaService.getSystemMetrics();
 
     const healthData = {
-      availability: health.status,
-      latencyMs: health.latencyMs,
-      version: health.version,
+      availability,
+      latencyMs,
+      version,
       metrics,
     };
 

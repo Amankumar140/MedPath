@@ -190,6 +190,10 @@ model Conversation {
   createdAt              DateTime                 @default(now()) @map("created_at") @db.Timestamptz
   updatedAt              DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt              DateTime?                @map("deleted_at") @db.Timestamptz
+  contextId              String?                  @map("context_id")
+  sessionVersion         Int?                     @map("session_version")
+  contextData            Json?                    @map("context_data")
+  taskId                 String?                  @map("task_id")
 
   user                   User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages               ConversationMessage[]
@@ -228,6 +232,10 @@ model PatientContext {
   budget            String?
   detectedLanguage  String?      @map("detected_language")
   isContextComplete Boolean      @default(false) @map("is_context_complete")
+  contextId         String?      @map("context_id")
+  sessionVersion    Int?         @map("session_version")
+  contextData       Json?        @map("context_data")
+  taskId            String?      @map("task_id")
   createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz
   updatedAt         DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -289,6 +297,22 @@ model RecommendationSnapshot {
   reason          String       @db.Text
   source          String?
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  // New fields to store detailed hospital discovery results
+  summary            String?
+  pros               Json?
+  cons               Json?
+  overallScore       Float?       @map("overall_score")
+  travelTime         String?      @map("travel_time")
+  website            String?
+  phone              String?
+  address            String?
+  hospitalType       String?      @map("hospital_type")
+  accreditations     Json?
+  reviewCount        Int?         @map("review_count")
+  hasEmergency       Boolean?     @map("has_emergency")
+  hasIcu             Boolean?     @map("has_icu")
+  estimatedCostRange Json?        @map("estimated_cost_range")
 
   conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   reviews         HospitalReview[]

@@ -40,6 +40,26 @@ const sendMessageSchema = z.object({
     required_error: 'Message text is required',
     invalid_type_error: 'Message text must be a string',
   }).trim().min(1, 'Message text cannot be empty'),
+  latitude: z.number()
+    .min(-90, 'Latitude must be between -90 and 90')
+    .max(90, 'Latitude must be between -90 and 90')
+    .optional()
+    .nullable(),
+  longitude: z.number()
+    .min(-180, 'Longitude must be between -180 and 180')
+    .max(180, 'Longitude must be between -180 and 180')
+    .optional()
+    .nullable(),
+  formattedAddress: z.string()
+    .trim()
+    .max(500, 'Address too long')
+    .optional()
+    .nullable(),
+  city: z.string()
+    .trim()
+    .max(100, 'City name too long')
+    .optional()
+    .nullable(),
 }).strict();
 
 /**

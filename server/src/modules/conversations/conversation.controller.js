@@ -349,10 +349,15 @@ async function getConversationDetails(req, res, next) {
 async function sendMessage(req, res, next) {
   try {
     const { id } = req.params;
-    const { message } = req.body;
+    const { message, latitude, longitude, formattedAddress, city } = req.body;
     const acceptHeader = req.headers.accept;
 
-    const stream = await conversationService.sendMessage(id, req.user.id, message);
+    const stream = await conversationService.sendMessage(id, req.user.id, message, {
+      latitude,
+      longitude,
+      formattedAddress,
+      city,
+    });
 
     if (acceptHeader && acceptHeader.includes('text/event-stream')) {
       // 1. Server-Sent Events (SSE) Streaming Route
@@ -462,10 +467,28 @@ async function softDeleteConversation(req, res, next) {
   }
 }
 
+/**
+ * GET /conversations/:id/discovery/progress
+ * Retrieve discovery search task progress from Redis/Database.
+ */
+async function getDiscoveryProgress(req, res, next) {
+  try {
+    const { id } = req.params;
+    const progress = await conversationService.getDiscoveryProgress(id, req.user.id);
+    return res.status(200).json({
+      success: true,
+      data: progress,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   createConversation,
   listConversations,
   getConversationDetails,
   sendMessage,
   softDeleteConversation,
+  getDiscoveryProgress,
 };

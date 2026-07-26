@@ -63,4 +63,4 @@ graph TD
 ## Future Integrations
 
 * **Conversation Module**: Private chats and consultation routing will verify participant identities by referencing `req.user.id` (database UUID) or `req.user.firebaseUid`.
-* **Python AI Integration**: The FastAPI AI microservice accepts user queries alongside the user's details to provide personalized, context-aware health insights. The FastAPI service verifies calls using tokens or trusted server-to-server security contexts.
+* **Swasthya AI Core Integration**: The Swasthya AI Core API platform accepts user queries to provide personalized, context-aware health insights. The Swasthya service verifies calls using correlation tokens.
