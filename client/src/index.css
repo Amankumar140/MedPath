@@ -480,11 +480,98 @@ input[type="range"]::-webkit-slider-thumb:hover {
   box-shadow: 0 0 0 3px rgba(87, 241, 219, 0.22) !important;
 }
 
-@media (max-width: 768px) {
-  /* Reduce padding on mobile devices for tighter spacing */
-  .p-4 {
-    padding: 12px !important;
-  }
+/* =====================================================
+   RESPONSIVE / MOBILE UTILITIES (Phase 8)
+   ===================================================== */
+
+/* Safe Area Padding — iPhone notch + Android gesture nav */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pb-safe-nav {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4rem);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Mobile Sidebar Drawer Animations */
+@keyframes drawer-slide-in {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(0); }
+}
+@keyframes drawer-slide-out {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+.animate-drawer-in {
+  animation: drawer-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-drawer-out {
+  animation: drawer-slide-out 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Context Bottom Sheet Animations */
+@keyframes sheet-slide-up {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+@keyframes sheet-slide-down {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(100%); }
+}
+.animate-sheet-up {
+  animation: sheet-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-sheet-down {
+  animation: sheet-slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Overlay Fade Animations */
+@keyframes overlay-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes overlay-fade-out {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-overlay-in {
+  animation: overlay-fade-in 0.25s ease-out forwards;
+}
+.animate-overlay-out {
+  animation: overlay-fade-out 0.2s ease-in forwards;
+}
+
+/* Responsive Message Bubble Widths */
+.msg-bubble-user {
+  max-width: 90%;
+}
+.msg-bubble-ai {
+  max-width: 90%;
+}
+@media (min-width: 768px) {
+  .msg-bubble-user { max-width: 80%; }
+  .msg-bubble-ai { max-width: 80%; }
+}
+@media (min-width: 1024px) {
+  .msg-bubble-user { max-width: 65%; }
+  .msg-bubble-ai { max-width: 65%; }
+}
+
+/* Touch Target Minimum (44px per WCAG/Apple HIG) */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Bottom Sheet drag handle */
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-outline-variant);
+  margin: 0 auto;
 }
 
 /* Accessibility Focus States */

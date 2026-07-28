@@ -9,7 +9,7 @@ export function StreamingMessage({ text = "", conversationId }) {
       initial={{ opacity: 0, scale: 0.98, y: 8 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 200, damping: 23 }}
-      className="flex gap-4 w-full max-w-[85%] justify-start animate-fade-in"
+      className="flex gap-3 md:gap-4 w-full msg-bubble-ai justify-start animate-fade-in"
     >
       {/* 1. Streaming Avatar */}
       <AnimatedBotAvatar isStreaming={true} className="mt-1" />

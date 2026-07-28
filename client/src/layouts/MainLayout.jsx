@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useConversations } from "../context/ConversationContext";
@@ -13,10 +13,14 @@ export function MainLayout() {
   const navigate = useNavigate();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [drawerClosing, setDrawerClosing] = useState(false);
+  const drawerRef = useRef(null);
 
   const handleNewConsultation = () => {
     startNewConsultation();
     navigate("/chat/new");
+    closeMobileDrawer();
   };
 
   const handleLogout = async () => {
@@ -26,19 +30,93 @@ export function MainLayout() {
 
   const isActive = (path) => location.pathname === path;
 
+  // Close mobile drawer with exit animation
+  const closeMobileDrawer = useCallback(() => {
+    if (!mobileDrawerOpen) return;
+    setDrawerClosing(true);
+    setTimeout(() => {
+      setMobileDrawerOpen(false);
+      setDrawerClosing(false);
+    }, 250);
+  }, [mobileDrawerOpen]);
+
+  // Close drawer on route change
+  useEffect(() => {
+    if (mobileDrawerOpen) {
+      closeMobileDrawer();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  // ESC key closes drawer
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && mobileDrawerOpen) {
+        closeMobileDrawer();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileDrawerOpen, closeMobileDrawer]);
+
+  // Focus trap: focus drawer when opened
+  useEffect(() => {
+    if (mobileDrawerOpen && drawerRef.current) {
+      drawerRef.current.focus();
+    }
+  }, [mobileDrawerOpen]);
+
+  // Prevent body scroll when drawer open
+  useEffect(() => {
+    if (mobileDrawerOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileDrawerOpen]);
+
+  // Shared nav link component for drawer
+  const DrawerNavLink = ({ to, icon, label }) => (
+    <Link
+      to={to}
+      onClick={closeMobileDrawer}
+      className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-label-md font-semibold touch-target ${
+        isActive(to) || (to === "/hospitals" && location.pathname.startsWith("/hospitals/"))
+          ? "text-primary dark:text-primary-fixed bg-secondary-container/20 dark:bg-primary-container/30 shadow-sm border border-outline-variant/10"
+          : "text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-variant/40"
+      }`}
+    >
+      <span className="material-symbols-outlined text-[22px]">{icon}</span>
+      {label}
+    </Link>
+  );
+
   return (
     <div className={`min-h-screen bg-background text-on-background font-body-md antialiased flex flex-col md:flex-row pb-16 md:pb-0 pt-16 md:pt-0 ${theme === "light" ? "light" : "dark"}`}>
       
       {/* TopAppBar (Mobile Only) */}
-      <header className="fixed top-0 left-0 w-full h-16 z-50 flex justify-between items-center px-5 bg-surface/80 backdrop-blur-xl dark:bg-surface-container/85 shadow-[0px_4px_24px_rgba(0,0,0,0.03)] border-b border-outline-variant/15 md:hidden" role="banner" aria-label="MedPath mobile header">
-        <Link to="/" className="text-headline-md font-headline-md font-bold premium-text-gradient hover:opacity-90 transition-all cursor-pointer">
-          MedPath
-        </Link>
-        <div className="flex items-center gap-4">
+      <header className="fixed top-0 left-0 w-full h-16 z-50 flex justify-between items-center px-4 bg-surface/80 backdrop-blur-xl dark:bg-surface-container/85 shadow-[0px_4px_24px_rgba(0,0,0,0.03)] border-b border-outline-variant/15 md:hidden" role="banner" aria-label="MedPath mobile header">
+        <div className="flex items-center gap-2">
+          {/* Hamburger Button */}
+          <button
+            onClick={() => setMobileDrawerOpen(true)}
+            className="touch-target flex items-center justify-center p-2 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-all"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileDrawerOpen}
+            aria-controls="mobile-drawer"
+          >
+            <span className="material-symbols-outlined text-[24px]">menu</span>
+          </button>
+          <Link to="/" className="text-headline-md font-headline-md font-bold premium-text-gradient hover:opacity-90 transition-all cursor-pointer">
+            MedPath
+          </Link>
+        </div>
+        <div className="flex items-center gap-3">
           {/* Theme Toggle */}
           <button 
             onClick={toggleTheme}
-            className="text-on-surface-variant hover:text-secondary dark:hover:text-secondary-fixed transition-all opacity-85 hover:opacity-100 duration-200 p-2 rounded-lg hover:bg-surface-container-low"
+            className="touch-target flex items-center justify-center text-on-surface-variant hover:text-secondary dark:hover:text-secondary-fixed transition-all opacity-85 hover:opacity-100 duration-200 p-2 rounded-lg hover:bg-surface-container-low"
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           >
             <span className="material-symbols-outlined text-[22px]">
@@ -56,6 +134,92 @@ export function MainLayout() {
           </Link>
         </div>
       </header>
+
+      {/* Mobile Drawer Overlay + Panel */}
+      {mobileDrawerOpen && (
+        <div className="fixed inset-0 z-[60] md:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
+          {/* Backdrop */}
+          <div
+            className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${drawerClosing ? "animate-overlay-out" : "animate-overlay-in"}`}
+            onClick={closeMobileDrawer}
+            aria-hidden="true"
+          />
+          {/* Drawer Panel */}
+          <nav
+            ref={drawerRef}
+            id="mobile-drawer"
+            tabIndex={-1}
+            className={`absolute top-0 left-0 h-full w-72 max-w-[85vw] bg-surface dark:bg-surface-container shadow-2xl flex flex-col outline-none ${
+              drawerClosing ? "animate-drawer-out" : "animate-drawer-in"
+            }`}
+            aria-label="Mobile navigation"
+          >
+            {/* Drawer Header */}
+            <div className="p-5 pb-4 border-b border-outline-variant/15 flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-3">
+                <Link to="/" onClick={closeMobileDrawer} className="flex items-center gap-3 hover:opacity-90 transition-all">
+                  <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shrink-0 overflow-hidden shadow-sm">
+                    <img src={logoImage} alt="MedPath Logo" className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <h1 className="text-headline-md font-headline-md font-bold premium-text-gradient leading-tight">
+                      MedPath
+                    </h1>
+                    <p className="text-[11px] font-bold text-outline uppercase tracking-wider">Guided Healthcare</p>
+                  </div>
+                </Link>
+                <button
+                  onClick={closeMobileDrawer}
+                  className="touch-target flex items-center justify-center p-2 rounded-lg hover:bg-surface-container-low text-outline hover:text-primary transition-all"
+                  aria-label="Close navigation menu"
+                >
+                  <span className="material-symbols-outlined text-[22px]">close</span>
+                </button>
+              </div>
+              <button
+                onClick={handleNewConsultation}
+                className="w-full premium-gradient-primary text-on-primary py-3.5 rounded-xl font-semibold text-label-md hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-md hover-lift touch-target"
+              >
+                <span className="material-symbols-outlined text-[18px]">add</span>
+                New Consultation
+              </button>
+            </div>
+
+            {/* Nav Links */}
+            <div className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-1.5">
+              <DrawerNavLink to="/home" icon="dashboard" label="Dashboard" />
+              <DrawerNavLink to="/history" icon="history" label="Chat History" />
+              <DrawerNavLink to="/hospitals" icon="local_hospital" label="Hospitals" />
+              <DrawerNavLink to="/" icon="public" label="Home Page" />
+            </div>
+
+            {/* Drawer Footer — User Profile */}
+            <div className="p-3 border-t border-outline-variant/15">
+              <Link
+                to="/profile"
+                onClick={closeMobileDrawer}
+                className="w-full flex items-center gap-3 p-2.5 hover:bg-surface-container-low dark:hover:bg-surface-variant/20 rounded-2xl transition-all"
+              >
+                <div className="w-10 h-10 rounded-xl overflow-hidden border border-outline-variant/20 shrink-0 bg-primary-container text-primary flex items-center justify-center font-bold text-sm uppercase">
+                  {user?.photoUrl ? (
+                    <img src={user.photoUrl} alt="User profile" className="w-full h-full object-cover" />
+                  ) : (
+                    user?.displayName ? user.displayName.substring(0, 2) : "US"
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-label-md font-bold text-primary dark:text-primary-fixed truncate">
+                    {user?.displayName || "MedPath User"}
+                  </p>
+                  <p className="text-[10px] text-outline truncate font-semibold">
+                    {user?.email || "user@medpath.ai"}
+                  </p>
+                </div>
+              </Link>
+            </div>
+          </nav>
+        </div>
+      )}
 
       {/* SideNavBar (Desktop Only) */}
       <nav className={`h-full hidden md:flex fixed left-0 top-0 flex-col border-r border-outline-variant/20 bg-surface/95 dark:bg-surface-container/95 backdrop-blur-xl shadow-md z-40 transition-transform duration-300 ease-in-out w-64 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`} aria-label="Main navigation">
@@ -249,10 +413,10 @@ export function MainLayout() {
       </main>
 
       {/* BottomNavBar (Mobile Only) */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full h-16 z-50 flex justify-around items-center px-4 pb-safe border-t border-outline-variant/15 bg-surface/90 backdrop-blur-xl dark:bg-surface-container/90 shadow-lg" aria-label="Mobile navigation">
+      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 border-t border-outline-variant/15 bg-surface/90 backdrop-blur-xl dark:bg-surface-container/90 shadow-lg pb-safe" style={{ minHeight: "4rem" }} aria-label="Mobile navigation">
         <Link 
           to="/home" 
-          className={`flex flex-col items-center justify-center text-on-surface-variant hover:text-secondary ${
+          className={`flex flex-col items-center justify-center touch-target text-on-surface-variant hover:text-secondary ${
             isActive("/home") ? "text-primary bg-secondary-container/20 rounded-xl px-4 py-1.5 font-bold" : ""
           }`}
         >
@@ -261,7 +425,7 @@ export function MainLayout() {
         </Link>
         <button 
           onClick={handleNewConsultation}
-          className={`flex flex-col items-center justify-center text-on-surface-variant hover:text-secondary ${
+          className={`flex flex-col items-center justify-center touch-target text-on-surface-variant hover:text-secondary ${
             location.pathname.startsWith("/chat/") ? "text-primary bg-secondary-container/20 rounded-xl px-4 py-1.5 font-bold" : ""
           }`}
         >
@@ -270,7 +434,7 @@ export function MainLayout() {
         </button>
         <Link 
           to="/hospitals" 
-          className={`flex flex-col items-center justify-center text-on-surface-variant hover:text-secondary ${
+          className={`flex flex-col items-center justify-center touch-target text-on-surface-variant hover:text-secondary ${
             isActive("/hospitals") || location.pathname.startsWith("/hospitals/") ? "text-primary bg-secondary-container/20 rounded-xl px-4 py-1.5 font-bold" : ""
           }`}
         >
@@ -279,7 +443,7 @@ export function MainLayout() {
         </Link>
         <Link 
           to="/profile" 
-          className={`flex flex-col items-center justify-center text-on-surface-variant hover:text-secondary ${
+          className={`flex flex-col items-center justify-center touch-target text-on-surface-variant hover:text-secondary ${
             isActive("/profile") ? "text-primary bg-secondary-container/20 rounded-xl px-4 py-1.5 font-bold" : ""
           }`}
         >

@@ -21,6 +21,7 @@ export function RecommendationsPage() {
   const [hospitals, setHospitals] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || "recommendations");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   // Sync activeTab if changed via navigate state (e.g. from Review Wizard redirect)
   useEffect(() => {
@@ -101,22 +102,22 @@ export function RecommendationsPage() {
     <div className="flex-grow flex flex-col max-w-container-max mx-auto w-full bg-surface-bright dark:bg-background overflow-hidden animate-slide-up" role="main" aria-label="Care Recommendations & Feedback">
       
       {/* Page Tabs */}
-      <div className="px-5 md:px-8 pt-5 bg-surface border-b border-outline-variant/15 flex gap-8 shrink-0" role="tablist">
+      <div className="px-4 md:px-8 pt-4 md:pt-5 bg-surface border-b border-outline-variant/15 flex gap-4 md:gap-8 shrink-0" role="tablist">
         <button
           onClick={() => {
             setActiveTab("recommendations");
             // Clear router state to prevent sticky tab state
             navigate("/hospitals", { replace: true, state: {} });
           }}
-          className={`pb-3.5 text-label-lg font-bold border-b-3 transition-all relative cursor-pointer ${
+          className={`pb-3 md:pb-3.5 text-label-md md:text-label-lg font-bold border-b-3 transition-all relative cursor-pointer touch-target ${
             activeTab === "recommendations"
-              ? "border-primary text-primary dark:border-primary-fixed dark:text-primary-fixed font-bold text-[15px]"
+              ? "border-primary text-primary dark:border-primary-fixed dark:text-primary-fixed font-bold"
               : "border-transparent text-outline hover:text-on-surface"
           }`}
           role="tab"
           aria-selected={activeTab === "recommendations"}
         >
-          Clinical Recommendations
+          Recommendations
         </button>
         <button
           onClick={() => {
@@ -124,25 +125,41 @@ export function RecommendationsPage() {
             // Clear router state to prevent sticky tab state
             navigate("/hospitals", { replace: true, state: {} });
           }}
-          className={`pb-3.5 text-label-lg font-bold border-b-3 transition-all relative cursor-pointer ${
+          className={`pb-3 md:pb-3.5 text-label-md md:text-label-lg font-bold border-b-3 transition-all relative cursor-pointer touch-target ${
             activeTab === "feedback"
-              ? "border-primary text-primary dark:border-primary-fixed dark:text-primary-fixed font-bold text-[15px]"
+              ? "border-primary text-primary dark:border-primary-fixed dark:text-primary-fixed font-bold"
               : "border-transparent text-outline hover:text-on-surface"
           }`}
           role="tab"
           aria-selected={activeTab === "feedback"}
         >
-          Visit History & Feedback
+          History & Feedback
         </button>
       </div>
 
       {activeTab === "recommendations" ? (
         <div className="flex-grow flex flex-col md:flex-row overflow-hidden">
-          {/* Filters Sidebar */}
-          <aside className="w-full md:w-80 p-5 md:p-6 border-b md:border-b-0 md:border-r border-outline-variant/15 bg-surface/90 dark:bg-surface-container-low/90 shrink-0 overflow-y-auto" aria-label="Filters">
-            <div className="sticky top-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-headline-md font-bold text-primary dark:text-primary-fixed">Filters</h2>
+          {/* Filters Sidebar — Collapsible on mobile */}
+          <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-outline-variant/15 bg-surface/90 dark:bg-surface-container-low/90 shrink-0 md:overflow-y-auto" aria-label="Filters">
+            {/* Mobile Filter Toggle */}
+            <button
+              onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+              className="md:hidden w-full flex items-center justify-between px-4 py-3 text-label-md font-bold text-primary dark:text-primary-fixed touch-target cursor-pointer"
+              aria-expanded={mobileFiltersOpen}
+            >
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px]">filter_list</span>
+                Filters
+              </span>
+              <span className={`material-symbols-outlined text-[20px] transition-transform duration-200 ${mobileFiltersOpen ? "rotate-180" : ""}`}>
+                expand_more
+              </span>
+            </button>
+
+            <div className={`${mobileFiltersOpen ? "block" : "hidden"} md:block p-4 md:p-6`}>
+              <div className="sticky top-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-headline-md font-bold text-primary dark:text-primary-fixed">Filters</h2>
                 <button
                   onClick={() => {
                     setDistanceLimit(15);
@@ -227,7 +244,8 @@ export function RecommendationsPage() {
                 </div>
               </div>
             </div>
-          </aside>
+          </div>
+        </aside>
 
           {/* Hospital list panel */}
           <div className="flex-grow p-5 md:p-8 space-y-6 overflow-y-auto">

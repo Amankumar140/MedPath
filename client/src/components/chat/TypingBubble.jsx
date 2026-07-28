@@ -54,7 +54,7 @@ export function TypingBubble({
   };
 
   return (
-    <div className="flex gap-4 w-full max-w-[85%] animate-fade-in justify-start">
+    <div className="flex gap-3 md:gap-4 w-full msg-bubble-ai animate-fade-in justify-start">
       {/* 1. Animated Avatar */}
       <AnimatedAIAvatar isStreaming={isStreaming} className="mt-1" />
 
@@ -66,8 +66,8 @@ export function TypingBubble({
             : "0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(229, 231, 235, 0.15)"
         }}
         transition={{ duration: 0.5 }}
-        className={`rounded-2xl rounded-tl-sm p-4 relative overflow-hidden premium-glass-card text-on-surface w-fit max-w-full ${
-          recommendations && recommendations.length > 0 ? "w-full md:w-[480px] lg:w-[520px]" : ""
+        className={`rounded-2xl rounded-tl-sm p-3 md:p-4 relative overflow-hidden premium-glass-card text-on-surface w-fit max-w-full ${
+          recommendations && recommendations.length > 0 ? "w-full max-w-lg" : ""
         }`}
       >
         {/* Subtle Shimmer Background Overlay while streaming */}
@@ -81,7 +81,7 @@ export function TypingBubble({
         )}
 
         {/* Response Text */}
-        <p className="text-body-md font-body-md whitespace-pre-wrap leading-relaxed relative z-10">
+        <p className="text-body-md font-body-md whitespace-pre-wrap leading-relaxed relative z-10 break-words">
           {text}
           {isStreaming && <StreamingCursor />}
         </p>
@@ -107,7 +107,7 @@ export function TypingBubble({
                     <span className="bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-fixed w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0" aria-hidden="true">
                       {hosp.rankingPosition}
                     </span>
-                    <h5 className="font-bold text-sm text-primary dark:text-primary-fixed leading-tight truncate">
+                    <h5 className="font-bold text-sm text-primary dark:text-primary-fixed leading-tight break-words">
                       {hosp.hospitalName}
                     </h5>
                   </div>
@@ -139,14 +139,14 @@ export function TypingBubble({
                           estimatedCost: hosp.estimatedCost
                         }
                       })}
-                      className="text-primary hover:text-secondary font-bold transition-colors cursor-pointer hover:underline text-xs flex items-center gap-0.5"
+                      className="text-primary hover:text-secondary font-bold transition-colors cursor-pointer hover:underline text-xs flex items-center gap-0.5 touch-target"
                     >
                       <span className="material-symbols-outlined text-[14px]">rate_review</span>
                       Review
                     </button>
                     <button
                       onClick={() => navigate(`/hospitals/${hosp.id || hosp.hospitalName}`, { state: { hospital: hosp } })}
-                      className="text-secondary hover:text-primary font-bold transition-colors cursor-pointer hover:underline text-xs flex items-center gap-0.5"
+                      className="text-secondary hover:text-primary font-bold transition-colors cursor-pointer hover:underline text-xs flex items-center gap-0.5 touch-target"
                     >
                       View Details &rarr;
                     </button>

@@ -179,13 +179,13 @@ export function DashboardPage({ tab }) {
               <span className="text-label-sm text-outline font-semibold">Common searches:</span>
               <button
                 onClick={() => setQuickSymptom("lingering dry cough since yesterday")}
-                className="px-3.5 py-1.5 bg-surface-container-low hover:bg-surface-container-high hover:text-primary rounded-full text-label-sm text-on-surface-variant border border-outline-variant/10 transition-all cursor-pointer font-medium"
+                className="px-3.5 py-1.5 bg-surface-container-low hover:bg-surface-container-high hover:text-primary rounded-full text-label-sm text-on-surface-variant border border-outline-variant/10 transition-all cursor-pointer font-medium touch-target flex items-center"
               >
                 Lingering dry cough
               </button>
               <button
                 onClick={() => setQuickSymptom("sharp lower abdominal pain")}
-                className="px-3.5 py-1.5 bg-surface-container-low hover:bg-surface-container-high hover:text-primary rounded-full text-label-sm text-on-surface-variant border border-outline-variant/10 transition-all cursor-pointer font-medium"
+                className="px-3.5 py-1.5 bg-surface-container-low hover:bg-surface-container-high hover:text-primary rounded-full text-label-sm text-on-surface-variant border border-outline-variant/10 transition-all cursor-pointer font-medium touch-target flex items-center"
               >
                 Lower abdominal pain
               </button>

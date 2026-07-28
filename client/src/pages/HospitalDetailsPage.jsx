@@ -270,6 +270,7 @@ export function HospitalDetailsPage() {
               variant="secondary"
               icon="rate_review"
               ariaLabel={`Write a review for ${hospital.hospitalName}`}
+              className="w-full touch-target"
             >
               Write a Review
             </Button>

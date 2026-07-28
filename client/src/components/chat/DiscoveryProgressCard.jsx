@@ -28,12 +28,12 @@ export function DiscoveryProgressCard({ progress }) {
   const activeIndex = getActiveStageIndex(percentage);
 
   return (
-    <div className="flex gap-4 max-w-[90%] sm:max-w-[85%] animate-fade-in my-4">
+    <div className="flex gap-3 md:gap-4 msg-bubble-ai animate-fade-in my-4">
       {/* Robot Avatar */}
       <AnimatedBotAvatar isStreaming={false} />
 
       {/* Main card */}
-      <div className="flex-grow bg-surface dark:bg-surface-container rounded-2xl rounded-tl-sm p-6 shadow-xl border border-outline-variant/20 w-full sm:max-w-md">
+      <div className="flex-grow bg-surface dark:bg-surface-container rounded-2xl rounded-tl-sm p-4 md:p-6 shadow-xl border border-outline-variant/20 w-full max-w-md">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h4 className="text-body-md font-bold text-primary dark:text-primary-fixed">
