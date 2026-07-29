@@ -1,14 +1,26 @@
 # MedPath - Guided Healthcare & AI Clinical Navigation Platform
 
-![MedPath Banner](https://raw.githubusercontent.com/Amankumar140/MedPath/main/client/src/assets/screen.png)
+<div align="center">
+  <img src="https://raw.githubusercontent.com/Amankumar140/MedPath/main/client/src/assets/screen.png" alt="MedPath Banner" width="600" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);" />
+</div>
 
 MedPath is an AI-powered, location-aware guided healthcare platform designed to simplify clinical triage, streamline symptom analysis, and match patients with local clinical departments and healthcare providers.
 
 ---
 
+## 🌐 Live Deployments & Cloud Environments
+
+| Service | Platform | Live URL / Endpoint | Status |
+| :--- | :--- | :--- | :--- |
+| **Frontend Web App** | Vercel | [medpath-v1-ak.vercel.app](https://medpath-v1-ak.vercel.app/) | ![Vercel](https://img.shields.io/badge/Vercel-Live-success?logo=vercel) |
+| **Node.js Express Backend API** | Render | [medpath-server.onrender.com](https://medpath-server.onrender.com/) | ![Render](https://img.shields.io/badge/Render-Live-success?logo=render) |
+| **Swasthya AI Core / LLM Microservice** | Render | [medpath-microservices.onrender.com](https://medpath-microservices.onrender.com/) | ![Render](https://img.shields.io/badge/Swasthya--AI--Core-Live-success?logo=python) |
+
+---
+
 ## 🌟 Key Features
 
-- 🩺 **AI Clinical Triage Chat**: Real-time streaming symptom assessment powered by dedicated LLM microservices (LangChain & FastAPI).
+- 🩺 **AI Clinical Triage Chat**: Real-time streaming symptom assessment powered by the downstream **Swasthya AI Core** microservice (LangChain & FastAPI).
 - ⚡ **Optimistic & Flicker-Free UI**: Smooth Server-Sent Events (SSE) streaming with permanent message mounting and interactive status indicators.
 - 📍 **Geospatial Hospital Discovery**: Real-time matching of identified symptoms against local clinical departments, distance, and estimated care costs.
 - 🎙️ **Voice Dictation**: Hands-free symptom input using integrated Web Speech API dictation.
@@ -24,15 +36,16 @@ MedPath is built using a modern 3-tier microservices architecture:
 
 ```mermaid
 graph TD
-    A[Client - React + Vite UI] -->|HTTP / REST| B[Server - Node.js Express API]
-    A -->|SSE Stream| B
-    B -->|Database Query| C[(Database - PostgreSQL / Prisma)]
-    B -->|FastAPI LLM Call| D[LLM Microservice - Python FastAPI]
-    D -->|LangChain Orchestration| E[LLM Provider - Mistral AI / Gemini]
+    A["Client UI (Vercel)"] -->|HTTP / REST| B["Server API (Render)"]
+    A -->|SSE Stream Relay| B
+    B -->|Database Queries| C[(PostgreSQL / Prisma)]
+    B -->|AI Context & Discovery| D["Swasthya AI Core / LLM Microservice (Render)"]
+    D -->|LangChain Orchestration| E["LLM Provider (Mistral AI / Gemini)"]
     B -->|Session Caching| F[(Redis Cache)]
 ```
 
 ### 1. Frontend (`/client`)
+- **Live App**: [https://medpath-v1-ak.vercel.app/](https://medpath-v1-ak.vercel.app/)
 - **Framework**: React 19 + Vite 8
 - **Styling**: Tailwind CSS v4, Custom Glassmorphic Design System
 - **State & Routing**: React Router v7, React Context API
@@ -40,16 +53,19 @@ graph TD
 - **Validation**: Zod, React Hook Form
 
 ### 2. Backend API (`/server`)
+- **Live Endpoint**: [https://medpath-server.onrender.com/](https://medpath-server.onrender.com/)
 - **Runtime**: Node.js (>=18.0) + Express
 - **Database & ORM**: Prisma ORM with PostgreSQL / SQLite
 - **Auth**: Firebase Admin SDK
 - **Logging & Security**: Winston, Helmet, CORS, Express Rate Limit
 - **API Docs**: Swagger UI (`swagger-jsdoc`, `swagger-ui-express`)
 
-### 3. LLM Microservice (`/llm`)
+### 3. Swasthya AI Core Microservice (`/llm`)
+- **Live Service**: [https://medpath-microservices.onrender.com/](https://medpath-microservices.onrender.com/)
 - **Framework**: Python 3.10+ & FastAPI + Uvicorn
 - **Orchestration**: LangChain, Pydantic v2
 - **Models**: Mistral AI / Google Gemini
+- **State & Polling**: Redis task queue & background discovery polling
 - **Testing**: Pytest, Pytest-Asyncio
 
 ---
@@ -77,10 +93,10 @@ MedPath/
 │   │   ├── config/             # Environment Configurations & Firebase Admin
 │   │   ├── modules/            # Auth, AI, Conversations, Reviews Modules
 │   │   ├── routes/             # Express API Route Handlers
-│   │   └── services/           # Discovery Polling & LLM Integration Service
+│   │   └── services/           # Discovery Polling & Swasthya Integration Service
 │   └── server.js
 │
-├── llm/                        # Python FastAPI LLM Microservice
+├── llm/                        # Swasthya AI Core (Python FastAPI Microservice)
 │   ├── app/
 │   │   ├── agents.py           # Clinical Triage & Prompt Orchestrator
 │   │   ├── config.py           # Pydantic BaseSettings
@@ -118,7 +134,7 @@ cd MedPath
 
 ---
 
-#### 2. Setup LLM Microservice (Python FastAPI)
+#### 2. Setup Swasthya AI Core Microservice (Python FastAPI)
 ```bash
 cd llm
 python -m venv venv
@@ -156,7 +172,8 @@ Create a `.env` file in the `server/` directory:
 ```env
 PORT=3000
 DATABASE_URL="file:./dev.db" # or PostgreSQL connection string
-PYTHON_MICROSERVICE_URL="http://localhost:8000"
+SWASTHYA_API_URL="https://medpath-microservices.onrender.com" # or http://localhost:8000
+PYTHON_MICROSERVICE_URL="https://medpath-microservices.onrender.com"
 JWT_SECRET="your_jwt_secret_key"
 NODE_ENV="development"
 ```
@@ -199,7 +216,7 @@ cd client
 npm run lint
 ```
 
-### Running LLM Microservice Tests
+### Running Swasthya AI Microservice Tests
 ```bash
 cd llm
 pytest
@@ -214,8 +231,8 @@ pytest
 | `POST` | `/api/v1/auth/session` | Authenticate user & sync profile |
 | `GET` | `/api/v1/conversations` | List user consultation history |
 | `POST` | `/api/v1/conversations` | Start a new consultation session |
-| `POST` | `/api/v1/conversations/:id/messages` | Stream user message via SSE |
-| `GET` | `/api/v1/conversations/:id/discovery/progress` | Poll background department search progress |
+| `POST` | `/api/v1/conversations/:id/messages` | Stream user message via SSE relay |
+| `GET` | `/api/v1/conversations/:id/discovery/progress` | Poll background Swasthya AI department search |
 | `GET` | `/api/v1/hospitals` | Search & filter local hospitals by location/symptoms |
 | `POST` | `/api/v1/reviews` | Submit patient experience review |
 
