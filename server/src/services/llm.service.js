@@ -44,7 +44,7 @@ async function postContext({ conversationId, message, browserLocation }) {
     return response.data;
   } catch (error) {
     const statusCode = error.response?.status || 500;
-    const errorMsg = error.response?.data?.detail || error.message || 'LLM Microservice Request Failed';
+    const errorMsg = error.response?.data?.detail || error.response?.data?.message || error.message || 'LLM Microservice Request Failed';
     logger.error(`❌ [LLM Microservice Error] status=${statusCode} | message=${errorMsg}`);
 
     const err = new Error(errorMsg);

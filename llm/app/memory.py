@@ -102,7 +102,7 @@ class RedisMemoryManager:
                     missing_fields=[]
                 )
         except Exception as e:
-            logger.warning(f"Redis get_conversation failure, switching to fallback memory: {str(e)}", extra={"conversation_id": conversation_id})
+            logger.warning(f"Redis get operation failed ({e}). Falling back to local in-memory storage.")
             self._use_fallback = True
             return await self.get_conversation(conversation_id)
 
