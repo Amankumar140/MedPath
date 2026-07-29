@@ -227,9 +227,16 @@ export function ChatPage() {
   const context = activeConversation?.patientContext || { symptoms: "", age: null, location: "", isContextComplete: false };
   const recommendations = activeConversation?.recommendationSnapshots || [];
 
-  // Context sidebar content (shared between desktop panel and mobile sheet)
-  const ContextContent = () => (
-    <div className="space-y-6 animate-fade-in">
+// Memoized Consultation Context Panel component (extracted to prevent re-renders on keystroke)
+const ConsultationContextPanel = memo(function ConsultationContextPanel({
+  symptomsList,
+  context,
+  selectedLocation,
+  recommendations,
+  onNavigateRecommendations,
+}) {
+  return (
+    <div className="space-y-6">
       {/* Symptoms identified */}
       <div>
         <h4 className="text-label-sm font-semibold text-on-surface-variant mb-2.5 flex justify-between items-center">
@@ -239,7 +246,7 @@ export function ChatPage() {
         {symptomsList.length === 0 ? (
           <p className="text-sm text-outline italic">No symptoms parsed yet.</p>
         ) : (
-          <div className="flex flex-wrap gap-2 animate-fade-in">
+          <div className="flex flex-wrap gap-2">
             {symptomsList.map((sym, i) => (
               <div
                 key={i}
@@ -282,14 +289,14 @@ export function ChatPage() {
 
       {/* Hospital recommendations link shortcut */}
       {recommendations.length > 0 && (
-        <div className="animate-fade-in">
+        <div>
           <h4 className="text-label-sm font-bold text-on-surface-variant mb-2.5">Suggested Next Steps</h4>
           <div className="space-y-2">
             <Card
-              onClick={() => { navigate("/hospitals", { state: { recommendations } }); closeContextSheet(); }}
+              onClick={onNavigateRecommendations}
               hoverLift
               variant="glass"
-              className="p-3.5 border-secondary bg-secondary/5 hover:bg-secondary/15 hover:border-secondary flex items-center gap-3.5 group"
+              className="p-3.5 border-secondary bg-secondary/5 hover:bg-secondary/15 hover:border-secondary flex items-center gap-3.5 group cursor-pointer"
             >
               <div className="w-9 h-9 rounded-xl bg-secondary text-white flex items-center justify-center shrink-0 shadow-sm" aria-hidden="true">
                 <span className="material-symbols-outlined text-[18px]">local_hospital</span>
@@ -304,6 +311,7 @@ export function ChatPage() {
       )}
     </div>
   );
+});
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden bg-surface-bright dark:bg-background relative animate-slide-up" role="main" aria-label="AI Consultation Chat">
@@ -477,7 +485,13 @@ export function ChatPage() {
             Consultation Context
           </h3>
         </div>
-        <ContextContent />
+        <ConsultationContextPanel
+          symptomsList={symptomsList}
+          context={context}
+          selectedLocation={selectedLocation}
+          recommendations={recommendations}
+          onNavigateRecommendations={() => { navigate("/hospitals", { state: { recommendations } }); closeContextSheet(); }}
+        />
       </aside>
 
       {/* Mobile/Tablet: Context FAB Button (below lg) */}
@@ -524,7 +538,13 @@ export function ChatPage() {
             </div>
             {/* Sheet Body */}
             <div className="flex-1 overflow-y-auto p-5 pb-safe">
-              <ContextContent />
+              <ConsultationContextPanel
+                symptomsList={symptomsList}
+                context={context}
+                selectedLocation={selectedLocation}
+                recommendations={recommendations}
+                onNavigateRecommendations={() => { navigate("/hospitals", { state: { recommendations } }); closeContextSheet(); }}
+              />
             </div>
           </div>
         </div>
