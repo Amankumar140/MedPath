@@ -33,40 +33,93 @@ MedPath is an AI-powered, location-aware guided healthcare platform designed to 
 
 ---
 
-## 🏗️ Architecture & Technology Stack
+## 🏗️ High-Level System Architecture
 
-MedPath uses a multi-tier microservice workflow:
+MedPath operates as an enterprise-grade, distributed microservice architecture designed for real-time clinical triage, stateful multi-turn symptom analysis, and asynchronous healthcare discovery.
+
+### 1. High-Level Architecture Diagram
 
 ```mermaid
-graph TD
-    A["Client UI (Vercel)"] -->|HTTP / SSE Stream| B["Node.js Server Orchestrator (Render)"]
-    B -->|1. Symptom Triage & Context Building| C["LLM Microservice (medpath-microservices)"]
-    B -->|2. Context Complete -> Trigger Research & Discovery| D["Swasthya AI Core (swasthya-ai-core)"]
-    C -->|LangChain Triage Agent| E["LLM Provider (Mistral AI / Gemini)"]
-    D -->|Department Scraping & Ranking| E
-    B -->|Data Persistence| F[(PostgreSQL / Prisma)]
-    B -->|Session & Health Cache| G[(Redis Cache)]
+flowchart TD
+    %% 1. PRESENTATION LAYER
+    subgraph PL["PRESENTATION LAYER"]
+        Client["React 19 SPA (Vite + Tailwind CSS)<br/>Patient Chat Portal & Voice Dictation"]
+    end
+
+    %% 2. API GATEWAY & ORCHESTRATION LAYER
+    subgraph GL["API GATEWAY & ORCHESTRATION LAYER"]
+        Gateway["Node.js Express Server (Port 3000)"]
+        Auth["Auth (Firebase & JWT)"]
+        Orch["Session & Discovery Orchestrator"]
+        Gateway --- Auth
+        Gateway --- Orch
+    end
+
+    %% 3. DATA & CACHING LAYER
+    subgraph DL["DATA & CACHING LAYER"]
+        PostgresDB[("PostgreSQL Database<br/>Prisma ORM (12 Entities)")]
+        RedisCache[("Redis In-Memory Cache<br/>Task Progress & Session State")]
+    end
+
+    %% 4. AI & DISCOVERY MICROSERVICES
+    subgraph ML["AI & DISCOVERY MICROSERVICES"]
+        LLMService["LLM Triage Microservice (FastAPI)<br/>LangChain Multi-Agent Context Extraction"]
+        SwasthyaCore["Swasthya AI Core (Python)<br/>Department Mapping & Hospital Scraping"]
+    end
+
+    %% Communication Flow
+    Client -->|HTTP REST / SSE Stream| Gateway
+
+    Gateway -->|1. Symptom Triage| LLMService
+
+    LLMService -->|Follow-up or Validated Context| Gateway
+
+    Gateway -->|2. Healthcare Discovery| SwasthyaCore
+    Gateway -->|3. Background Polling| SwasthyaCore
+
+    Gateway -->|Polling Cache & State| RedisCache
+    Gateway -->|Durable Persistence| PostgresDB
 ```
 
-### 1. Frontend (`/client`)
-- **Live App**: [https://medpath-v1-ak.vercel.app/](https://medpath-v1-ak.vercel.app/)
-- **Framework**: React 19 + Vite 8
-- **Styling**: Tailwind CSS v4, Custom Glassmorphic Design System
-- **State & Routing**: React Router v7, React Context API
+---
 
-### 2. Backend API (`/server`)
-- **Live Endpoint**: [https://medpath-server.onrender.com/](https://medpath-server.onrender.com/)
-- **Runtime**: Node.js (>=18.0) + Express
-- **Database & ORM**: Prisma ORM with PostgreSQL / SQLite
-- **Auth**: Firebase Admin SDK
+### 2. Component Overview
 
-### 3. LLM Microservice (`/llm`)
-- **Live Service**: [https://medpath-microservices.onrender.com/](https://medpath-microservices.onrender.com/)
-- **Role**: Initial triage chat, prompt orchestration, symptom extraction, and streaming SSE responses.
+| Component | Responsibility | Technology / Integration |
+| :--- | :--- | :--- |
+| **Client** | Captures patient symptoms via text or voice, captures GPS coordinates, and renders triage and hospital recommendations. | React 19, Vite 8, Tailwind CSS v4, Framer Motion, Web Speech API, Geolocation API |
+| **Backend Server** | Validates authentication, orchestrates session lifecycles, relays SSE streams, and coordinates AI and discovery tasks. | Node.js (>=18.0), Express.js, Firebase Admin SDK, Winston Logger |
+| **AI / Agent Layer** | Extracts clinical signals from conversation history, checks symptom sufficiency, and generates empathetic follow-up questions. | Python 3.10+, FastAPI (`/llm`), LangChain Multi-Agent Engine, Pydantic schemas |
+| **LLM Service** | Delivers language understanding and text generation for symptom extraction and follow-up clinical questions. | Groq (`llama-3.3-70b-versatile`), Mistral AI (`mistral-small-latest`), Google Gemini API |
+| **Cache / Context Store** | Caches high-frequency discovery polling progress, multi-turn chat history, and conversation metadata without database load. | Redis 7 (in-memory key-value cache with configurable TTLs) |
+| **Database** | Persists relational user accounts, consultation records, clinical contexts, hospital snapshots, and patient reviews. | PostgreSQL 15 accessed via Prisma ORM (12 relational data models) |
+| **Healthcare Integration** | Maps patient symptoms to clinical departments and initiates regional healthcare search jobs. | Swasthya AI Core REST API (`POST /api/v1/discovery/search`) with retry client |
+| **Hospital Discovery** | Scrapes regional medical registries, computes suitability and trust scores, and generates tiered care cost estimates. | Swasthya AI Core scraping engine with automated fallback to local PostgreSQL hospital directory |
+| **Deployment** | Hosts distributed microservices and executes automated continuous integration and deployment pipelines. | Vercel (Frontend), Render (API Gateway, LLM Service, Swasthya AI Core), Docker & Docker Compose, GitHub Actions |
 
-### 4. Swasthya AI Core
-- **Live Service**: [https://swasthya-ai-core.onrender.com/](https://swasthya-ai-core.onrender.com/)
-- **Role**: Asynchronous clinical department discovery, hospital scraping, suitability ranking, and task progress polling.
+---
+
+### 3. High-Level Request Flow
+
+The primary patient consultation journey follows an 8-step lifecycle:
+
+1. **User Query Intake**: The patient inputs symptoms through text or hands-free voice dictation on the React web app, with optional GPS geolocation capture.
+2. **Gateway Verification & Session Handling**: The client sends the query with a Firebase Bearer JWT to the Node.js Express API, where middleware authenticates the token, enforces rate limits, and persists the user message to PostgreSQL.
+3. **Clinical Triage & Context Extraction**: The backend forwards the consultation turn to the Python FastAPI microservice, where a LangChain multi-agent pipeline extracts symptoms, duration, severity, and care intent.
+4. **Sufficiency Validation & Clarifying Loop**: If core clinical signals are incomplete, the agent returns an empathetic clarifying question streamed back to the client via Server-Sent Events (SSE); the patient responds until all required clinical signals are gathered.
+5. **Asynchronous Healthcare Discovery Dispatch**: Once patient context is marked complete, the backend submits the clinical payload to the Swasthya AI Core discovery endpoint, obtaining an asynchronous `taskId`.
+6. **Zero-DB Out-of-Band Polling**: A Node.js background poller queries Swasthya AI Core every 2 seconds and writes progress directly to Redis (`task:{taskId}`), enabling the client to poll discovery progress in sub-milliseconds without querying PostgreSQL.
+7. **Atomic Persistence & Fallback Handling**: Upon search completion (or triggering a fallback search against local database hospital records if external services time out), an atomic Prisma transaction persists `RecommendationSnapshot` records and marks the conversation completed.
+8. **Recommendation Presentation & Continuous Consultation**: The client mounts interactive hospital recommendation cards with department matches, trust scores, estimated costs, and navigation directions, allowing the user to continue the conversation or submit verified reviews.
+
+---
+
+### 4. Key Architectural Boundaries & Design Decisions
+
+- **Decoupled Gateway & Intelligence**: Express.js isolates high-speed HTTP/SSE communication from Python LangChain AI processing, preventing heavy language model processing from blocking gateway throughput.
+- **Zero-PostgreSQL Polling Overhead**: Discovery progress is polled every 2 seconds during active searches; reading exclusively from Redis (`task:{taskId}`) prevents database connection exhaustion.
+- **Resilience with Graceful Degradation**: External Swasthya HTTP requests use 3-tier exponential backoff (`1s → 2s → 4s`). If the external service is unavailable or times out, the backend automatically falls back to the local PostgreSQL hospital registry.
+- **HIPAA-Inspired Privacy Redaction**: Sensitive clinical signals (symptoms, diagnoses, medical history) are filtered through a recursive sanitization layer before request or response payloads are recorded in log files.
 
 ---
 
@@ -96,14 +149,14 @@ MedPath/
 │   │   └── services/           # Discovery Polling & Swasthya Integration Service
 │   └── server.js
 │
-├── llm/                        # Swasthya AI Core (Python FastAPI Microservice)
+├── llm/                        # LLM Context Extraction & Triage Microservice (Python FastAPI)
 │   ├── app/
-│   │   ├── agents.py           # Clinical Triage & Prompt Orchestrator
-│   │   ├── config.py           # Pydantic BaseSettings
-│   │   ├── memory.py           # Conversation State & Context Extraction
-│   │   ├── prompts/            # Triage & Symptom Parsing Prompts
-│   │   └── schemas.py          # Input/Output Request Pydantic Models
-│   └── main.py                 # FastAPI App Entrypoint
+│   │   ├── agents.py           # Multi-Agent Clinical Triage Engine (LangChain + Mistral/Groq)
+│   │   ├── config.py           # Pydantic BaseSettings & Environment Config
+│   │   ├── memory.py           # Redis Multi-Turn Conversation Memory Manager
+│   │   ├── prompts/            # Triage & Symptom Parsing Prompt Templates
+│   │   └── schemas.py          # Pydantic Input/Output Validation Models
+│   └── main.py                 # FastAPI App Bootstrap & Endpoint Routing
 │
 ├── DESIGN_SYSTEM.md            # Frontend UI Design System Specifications
 ├── LOCATION.md                 # Location Engine & Geolocation Documentation
@@ -134,7 +187,7 @@ cd MedPath
 
 ---
 
-#### 2. Setup Swasthya AI Core Microservice (Python FastAPI)
+#### 2. Setup LLM Context Extraction Microservice (Python FastAPI)
 ```bash
 cd llm
 python -m venv venv
@@ -172,8 +225,8 @@ Create a `.env` file in the `server/` directory:
 ```env
 PORT=3000
 DATABASE_URL="file:./dev.db" # or PostgreSQL connection string
-SWASTHYA_API_URL="https://swasthya-ai-core.onrender.com" # or http://localhost:8000
-PYTHON_MICROSERVICE_URL="https://swasthya-ai-core.onrender.com"
+SWASTHYA_API_URL="https://swasthya-ai-core.onrender.com"
+PYTHON_MICROSERVICE_URL="https://medpath-microservices.onrender.com" # or http://localhost:8000
 JWT_SECRET="your_jwt_secret_key"
 NODE_ENV="development"
 ```
@@ -216,7 +269,7 @@ cd client
 npm run lint
 ```
 
-### Running Swasthya AI Microservice Tests
+### Running LLM Context Microservice Tests
 ```bash
 cd llm
 pytest
