@@ -1,15 +1,53 @@
-name: Deploy to Render
+name: Deploy Services to Cloud
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch: # This adds a manual "Run Workflow" button in GitHub Actions
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  deploy-server:
+    name: Deploy Backend API Server
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Render Webhook
+      - name: Trigger Render Server Webhook
+        env:
+          HOOK_URL: ${{ secrets.RENDER_SERVER_DEPLOY_HOOK_URL || secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          if [ -n "$HOOK_URL" ]; then
+            echo "🚀 Triggering Render Deployment for Server..."
+            curl -X POST "$HOOK_URL"
+          else
+            echo "⚠️ RENDER_SERVER_DEPLOY_HOOK_URL secret not set. Skipping Render trigger."
+          fi
+
+  deploy-llm:
+    name: Deploy LLM Microservice
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render LLM Microservice Webhook
+        env:
+          HOOK_URL: ${{ secrets.RENDER_LLM_DEPLOY_HOOK_URL || secrets.RENDER_MICROSERVICES_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$HOOK_URL" ]; then
+            echo "🚀 Triggering Render Deployment for LLM Microservice..."
+            curl -X POST "$HOOK_URL"
+          else
+            echo "⚠️ RENDER_LLM_DEPLOY_HOOK_URL secret not set. Skipping Render trigger."
+          fi
+
+  deploy-swasthya:
+    name: Deploy Swasthya AI Core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Swasthya AI Core Webhook
+        env:
+          HOOK_URL: ${{ secrets.RENDER_SWASTHYA_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$HOOK_URL" ]; then
+            echo "🚀 Triggering Render Deployment for Swasthya AI Core..."
+            curl -X POST "$HOOK_URL"
+          else
+            echo "⚠️ RENDER_SWASTHYA_DEPLOY_HOOK_URL secret not set. Skipping Render trigger."
+          fi
