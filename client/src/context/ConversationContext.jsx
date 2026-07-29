@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import conversationService from "../services/conversation.service";
 import { useAuth } from "./AuthContext";
 import { usePatientLocation } from "./LocationContext";
+import { auth } from "../firebase/config";
 
 const ConversationContext = createContext();
 
@@ -172,10 +173,35 @@ export function ConversationProvider({ children }) {
       setLoadingActive(true);
       setError(null);
       try {
-        const response = await conversationService.createConversation(
-          messageText.length > 30 ? messageText.substring(0, 30) + "..." : messageText,
-          selectedLocation // Pass location context to creation
-        );
+        // Refresh token on mobile to handle focus switch / permission prompt pauses
+        if (auth.currentUser) {
+          try {
+            const freshToken = await auth.currentUser.getIdToken();
+            localStorage.setItem("medpath_token", freshToken);
+          } catch (tErr) {
+            console.warn("Could not refresh token before conversation creation:", tErr);
+          }
+        }
+
+        let response;
+        try {
+          response = await conversationService.createConversation(
+            messageText.length > 30 ? messageText.substring(0, 30) + "..." : messageText,
+            selectedLocation
+          );
+        } catch (firstErr) {
+          // Retry once with forced token refresh if mobile OS location dialog caused a stale token / network pause
+          if (auth.currentUser) {
+            const freshToken = await auth.currentUser.getIdToken(true);
+            localStorage.setItem("medpath_token", freshToken);
+            response = await conversationService.createConversation(
+              messageText.length > 30 ? messageText.substring(0, 30) + "..." : messageText,
+              selectedLocation
+            );
+          } else {
+            throw firstErr;
+          }
+        }
         if (response && response.success) {
           currentId = response.data.id;
           setActiveId(currentId);
