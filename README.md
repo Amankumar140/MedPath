@@ -10,17 +10,20 @@ MedPath is an AI-powered, location-aware guided healthcare platform designed to 
 
 ## 🌐 Live Deployments & Cloud Environments
 
-| Service | Platform | Live URL / Endpoint | Status |
-| :--- | :--- | :--- | :--- |
-| **Frontend Web App** | Vercel | [medpath-v1-ak.vercel.app](https://medpath-v1-ak.vercel.app/) | ![Vercel](https://img.shields.io/badge/Vercel-Live-success?logo=vercel) |
-| **Node.js Express Backend API** | Render | [medpath-server.onrender.com](https://medpath-server.onrender.com/) | ![Render](https://img.shields.io/badge/Render-Live-success?logo=render) |
-| **Swasthya AI Core / LLM Microservice** | Render | [medpath-microservices.onrender.com](https://medpath-microservices.onrender.com/) | ![Render](https://img.shields.io/badge/Swasthya--AI--Core-Live-success?logo=python) |
+| Component / Service | Description / Role | Platform | Live URL / Endpoint | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **Frontend Web App** | Patient Portal, Dictation & Chat UI | Vercel | [medpath-v1-ak.vercel.app](https://medpath-v1-ak.vercel.app/) | ![Vercel](https://img.shields.io/badge/Vercel-Live-success?logo=vercel) |
+| **Node.js Express Backend API** | Central Orchestrator, Auth & Database Gateway | Render | [medpath-server.onrender.com](https://medpath-server.onrender.com/) | ![Render](https://img.shields.io/badge/Render-Live-success?logo=render) |
+| **LLM Microservice** | **Phase 1**: Real-time Symptom Triage & Context Extraction | Render | [medpath-microservices.onrender.com](https://medpath-microservices.onrender.com/) | ![Render](https://img.shields.io/badge/LLM--Microservice-Live-success?logo=python) |
+| **Swasthya AI Core** | **Phase 2**: Full Clinical Research, Scraping & Hospital Discovery | Render | [swasthya-ai-core.onrender.com](https://swasthya-ai-core.onrender.com/) | ![Render](https://img.shields.io/badge/Swasthya--AI--Core-Live-success?logo=python) |
 
 ---
 
 ## 🌟 Key Features
 
-- 🩺 **AI Clinical Triage Chat**: Real-time streaming symptom assessment powered by the downstream **Swasthya AI Core** microservice (LangChain & FastAPI).
+- 🩺 **Two-Phase Clinical Assessment**:
+  1. **Phase 1 (Triage Chat & Context Extraction)**: Real-time streaming symptom analysis via the **LLM Microservice** (`medpath-microservices.onrender.com`).
+  2. **Phase 2 (Clinical Research & Discovery)**: Once patient context is complete, the **Swasthya AI Core** (`swasthya-ai-core.onrender.com`) triggers background clinical department scraping, hospital discovery, and ranking.
 - ⚡ **Optimistic & Flicker-Free UI**: Smooth Server-Sent Events (SSE) streaming with permanent message mounting and interactive status indicators.
 - 📍 **Geospatial Hospital Discovery**: Real-time matching of identified symptoms against local clinical departments, distance, and estimated care costs.
 - 🎙️ **Voice Dictation**: Hands-free symptom input using integrated Web Speech API dictation.
@@ -32,16 +35,17 @@ MedPath is an AI-powered, location-aware guided healthcare platform designed to 
 
 ## 🏗️ Architecture & Technology Stack
 
-MedPath is built using a modern 3-tier microservices architecture:
+MedPath uses a multi-tier microservice workflow:
 
 ```mermaid
 graph TD
-    A["Client UI (Vercel)"] -->|HTTP / REST| B["Server API (Render)"]
-    A -->|SSE Stream Relay| B
-    B -->|Database Queries| C[(PostgreSQL / Prisma)]
-    B -->|AI Context & Discovery| D["Swasthya AI Core / LLM Microservice (Render)"]
-    D -->|LangChain Orchestration| E["LLM Provider (Mistral AI / Gemini)"]
-    B -->|Session Caching| F[(Redis Cache)]
+    A["Client UI (Vercel)"] -->|HTTP / SSE Stream| B["Node.js Server Orchestrator (Render)"]
+    B -->|1. Symptom Triage & Context Building| C["LLM Microservice (medpath-microservices)"]
+    B -->|2. Context Complete -> Trigger Research & Discovery| D["Swasthya AI Core (swasthya-ai-core)"]
+    C -->|LangChain Triage Agent| E["LLM Provider (Mistral AI / Gemini)"]
+    D -->|Department Scraping & Ranking| E
+    B -->|Data Persistence| F[(PostgreSQL / Prisma)]
+    B -->|Session & Health Cache| G[(Redis Cache)]
 ```
 
 ### 1. Frontend (`/client`)
@@ -49,24 +53,20 @@ graph TD
 - **Framework**: React 19 + Vite 8
 - **Styling**: Tailwind CSS v4, Custom Glassmorphic Design System
 - **State & Routing**: React Router v7, React Context API
-- **Icons & Motion**: Material Symbols, Framer Motion
-- **Validation**: Zod, React Hook Form
 
 ### 2. Backend API (`/server`)
 - **Live Endpoint**: [https://medpath-server.onrender.com/](https://medpath-server.onrender.com/)
 - **Runtime**: Node.js (>=18.0) + Express
 - **Database & ORM**: Prisma ORM with PostgreSQL / SQLite
 - **Auth**: Firebase Admin SDK
-- **Logging & Security**: Winston, Helmet, CORS, Express Rate Limit
-- **API Docs**: Swagger UI (`swagger-jsdoc`, `swagger-ui-express`)
 
-### 3. Swasthya AI Core Microservice (`/llm`)
+### 3. LLM Microservice (`/llm`)
 - **Live Service**: [https://medpath-microservices.onrender.com/](https://medpath-microservices.onrender.com/)
-- **Framework**: Python 3.10+ & FastAPI + Uvicorn
-- **Orchestration**: LangChain, Pydantic v2
-- **Models**: Mistral AI / Google Gemini
-- **State & Polling**: Redis task queue & background discovery polling
-- **Testing**: Pytest, Pytest-Asyncio
+- **Role**: Initial triage chat, prompt orchestration, symptom extraction, and streaming SSE responses.
+
+### 4. Swasthya AI Core
+- **Live Service**: [https://swasthya-ai-core.onrender.com/](https://swasthya-ai-core.onrender.com/)
+- **Role**: Asynchronous clinical department discovery, hospital scraping, suitability ranking, and task progress polling.
 
 ---
 
@@ -172,8 +172,8 @@ Create a `.env` file in the `server/` directory:
 ```env
 PORT=3000
 DATABASE_URL="file:./dev.db" # or PostgreSQL connection string
-SWASTHYA_API_URL="https://medpath-microservices.onrender.com" # or http://localhost:8000
-PYTHON_MICROSERVICE_URL="https://medpath-microservices.onrender.com"
+SWASTHYA_API_URL="https://swasthya-ai-core.onrender.com" # or http://localhost:8000
+PYTHON_MICROSERVICE_URL="https://swasthya-ai-core.onrender.com"
 JWT_SECRET="your_jwt_secret_key"
 NODE_ENV="development"
 ```
