@@ -17,7 +17,8 @@ export function Badge({
     primary: "bg-primary-container/20 text-primary dark:bg-primary-container/30 dark:text-primary-fixed border-primary-container/25",
     secondary: "bg-secondary-container/20 text-secondary border-secondary/10",
     success: "bg-tertiary-container/30 text-on-tertiary-container dark:text-tertiary border-tertiary/10",
-    warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    warning: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
+    purple: "bg-[#6366f1]/10 text-[#6366f1] dark:text-[#818cf8] border-[#6366f1]/20",
     danger: "bg-error/10 text-error border-error/20",
   };
 

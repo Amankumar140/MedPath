@@ -13,8 +13,8 @@ const STAGE_DETAILS = {
     title: "Understanding context",
     description: "Synthesizing symptoms into patient clinical profile...",
     icon: "insights",
-    color: "text-amber-500",
-    bg: "bg-amber-500/10 border-amber-500/20"
+    color: "text-indigo-500",
+    bg: "bg-indigo-500/10 border-indigo-500/20"
   },
   searching: {
     title: "Searching hospitals",

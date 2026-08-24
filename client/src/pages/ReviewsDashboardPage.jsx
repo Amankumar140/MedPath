@@ -266,7 +266,7 @@ export function ReviewsDashboardPage() {
                             {draft.hospitalName}
                           </h4>
                           <div className="flex gap-2 items-center">
-                            <span className="bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-amber-300/10 shrink-0">
+                            <span className="bg-indigo-100 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-indigo-300/10 shrink-0">
                               Draft
                             </span>
                             <button
@@ -431,7 +431,7 @@ export function ReviewsDashboardPage() {
                             review.hospitalRecommendation === 'Definitely' || review.hospitalRecommendation === 'Probably'
                               ? 'bg-success/10 text-success border-success/20' 
                               : review.hospitalRecommendation === 'Maybe' 
-                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' 
+                              ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' 
                               : 'bg-error/10 text-error border-error/20'
                           }`}>
                             {review.hospitalRecommendation || "N/A"}

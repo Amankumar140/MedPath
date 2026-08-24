@@ -21,6 +21,7 @@ export function Button({
 
   const variants = {
     primary: "premium-gradient-primary text-on-primary hover:opacity-95 shadow-md",
+    purple: "bg-gradient-to-r from-[#6366f1] to-[#818cf8] text-white hover:opacity-95 shadow-md",
     secondary: "bg-secondary text-on-secondary hover:bg-secondary/95 shadow-md",
     outline: "border border-outline-variant/50 text-on-surface hover:bg-surface-container-low dark:border-outline-variant/30",
     ghost: "text-on-surface hover:bg-surface-container-low hover:text-primary",

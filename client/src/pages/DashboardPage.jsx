@@ -220,7 +220,7 @@ export function DashboardPage({ tab }) {
               </Card>
 
               <Card variant="glass" hoverLift className="p-5 flex items-center gap-4 border border-outline-variant/15">
-                <div className="w-12 h-12 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl flex items-center justify-center shadow-sm" aria-hidden="true">
+                <div className="w-12 h-12 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center shadow-sm" aria-hidden="true">
                   <span className="material-symbols-outlined text-[24px]">pending</span>
                 </div>
                 <div>

@@ -122,6 +122,29 @@ async function getConversationDetails(id, userId) {
     await cacheService.set(`conversation:${id}`, conversationMeta, 1800); // 30m TTL
   }
 
+  // Ensure conversation always includes the initial AI greeting
+  if (messages.length > 0 && messages[0].sender === 'USER') {
+    const defaultWelcome = {
+      id: `welcome-${id}`,
+      conversationId: id,
+      sender: 'AI',
+      message: 'Hello! I am your MedPath AI Assistant. I can analyze your symptoms and search local clinical departments. What symptoms are you experiencing today?',
+      messageType: 'TEXT',
+      createdAt: messages[0].createdAt ? new Date(new Date(messages[0].createdAt).getTime() - 1000).toISOString() : new Date().toISOString(),
+    };
+    messages = [defaultWelcome, ...messages];
+  } else if (messages.length === 0) {
+    const defaultWelcome = {
+      id: `welcome-${id}`,
+      conversationId: id,
+      sender: 'AI',
+      message: 'Hello! I am your MedPath AI Assistant. I can analyze your symptoms and search local clinical departments. What symptoms are you experiencing today?',
+      messageType: 'TEXT',
+      createdAt: conversationMeta?.createdAt || new Date().toISOString(),
+    };
+    messages = [defaultWelcome];
+  }
+
   return {
     conversation: conversationMeta,
     messages,

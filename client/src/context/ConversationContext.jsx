@@ -7,7 +7,7 @@ import { auth } from "../firebase/config";
 const ConversationContext = createContext();
 
 export function ConversationProvider({ children }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { selectedLocation } = usePatientLocation();
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
@@ -19,19 +19,31 @@ export function ConversationProvider({ children }) {
   const [streamStatus, setStreamStatus] = useState("");
   const [error, setError] = useState(null);
 
+  // Active state refs for stable callbacks
+  const activeIdRef = useRef(activeId);
+  const activeConversationRef = useRef(activeConversation);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+    activeConversationRef.current = activeConversation;
+  }, [activeId, activeConversation]);
+
   // Polling States
   const [isPolling, setIsPolling] = useState(false);
   const [discoveryProgress, setDiscoveryProgress] = useState(null);
   const pollIntervalRef = useRef(null);
 
-  const stopPolling = useCallback(() => {
+  const clearPollInterval = useCallback(() => {
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
+  }, []);
+
+  const stopPolling = useCallback(() => {
+    clearPollInterval();
     setIsPolling(false);
     setDiscoveryProgress(null);
-  }, []);
+  }, [clearPollInterval]);
 
   const loadConversations = useCallback(async () => {
     if (!user) return;
@@ -53,7 +65,7 @@ export function ConversationProvider({ children }) {
     }
   }, [user]);
 
-  const startDiscoveryPolling = useCallback((convoId) => {
+   const startDiscoveryPolling = useCallback((convoId) => {
     stopPolling();
     setIsPolling(true);
     setDiscoveryProgress({
@@ -71,12 +83,29 @@ export function ConversationProvider({ children }) {
           setDiscoveryProgress(data);
           
           if (data.status === "completed" || data.progress === 100) {
-            stopPolling();
-            // Reload conversation details to capture final AI recommendations and messages
-            const refreshed = await conversationService.getConversationDetails(convoId);
+            clearPollInterval();
+            // Show "Completed" briefly so the user sees the final stage
+            setDiscoveryProgress({ progress: 100, status: "completed", current_stage: "Completed", percentage: 100 });
+
+            // Fetch conversation details with retry — DB transaction may still be committing
+            let refreshed = null;
+            for (let attempt = 0; attempt < 3; attempt++) {
+              refreshed = await conversationService.getConversationDetails(convoId);
+              if (refreshed?.success && refreshed.data?.recommendationSnapshots?.length > 0) {
+                break; // Got recommendations, no need to retry
+              }
+              // Wait 1.5s before retrying
+              await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+
             if (refreshed && refreshed.success) {
               setActiveConversation(refreshed.data);
             }
+            // Small delay before hiding progress card so user sees "Completed" state
+            setTimeout(() => {
+              setIsPolling(false);
+              setDiscoveryProgress(null);
+            }, 800);
             await loadConversations();
           } else if (data.status === "failed") {
             stopPolling();
@@ -87,7 +116,7 @@ export function ConversationProvider({ children }) {
         console.error("Error polling discovery progress:", err);
       }
     }, 2000);
-  }, [stopPolling, loadConversations]);
+  }, [stopPolling, clearPollInterval, loadConversations]);
 
   const selectConversation = useCallback(async (id) => {
     stopPolling();
@@ -103,12 +132,12 @@ export function ConversationProvider({ children }) {
     }
 
     // If conversation is already loaded in memory and matches activeId, avoid blank screen reload
-    if (activeId === id && activeConversation?.conversation?.id === id && activeConversation?.messages?.length > 0) {
+    if (activeIdRef.current === id && activeConversationRef.current?.conversation?.id === id && activeConversationRef.current?.messages?.length > 0) {
       return;
     }
 
     // Don't show full loading skeleton if we already have the conversation active
-    if (activeId !== id) {
+    if (activeIdRef.current !== id) {
       setLoadingActive(true);
     }
     setActiveId(id);
@@ -116,18 +145,9 @@ export function ConversationProvider({ children }) {
     try {
       const response = await conversationService.getConversationDetails(id);
       if (response && response.success) {
-        // Merge optimistic messages if current conversation was recently created
-        setActiveConversation(prev => {
-          if (prev && prev.conversation?.id === id && prev.messages?.length > response.data?.messages?.length) {
-            return {
-              ...response.data,
-              messages: prev.messages,
-            };
-          }
-          return response.data;
-        });
-        // Auto-resume polling if discovery task is active
-        if (response.data.conversation?.taskId && response.data.conversation?.status === "ACTIVE") {
+        setActiveConversation(response.data);
+        const taskId = response.data.conversation?.taskId || response.data.patientContext?.taskId;
+        if (taskId && response.data.conversation?.status === "ACTIVE") {
           startDiscoveryPolling(id);
         }
       }
@@ -137,7 +157,7 @@ export function ConversationProvider({ children }) {
     } finally {
       setLoadingActive(false);
     }
-  }, [activeId, activeConversation, startDiscoveryPolling, stopPolling]);
+  }, [startDiscoveryPolling, stopPolling]);
 
   const startNewConsultation = useCallback(() => {
     stopPolling();
@@ -154,7 +174,7 @@ export function ConversationProvider({ children }) {
     try {
       await conversationService.softDeleteConversation(id);
       setConversations(prev => prev.filter(c => c.id !== id));
-      if (activeId === id) {
+      if (activeIdRef.current === id) {
         startNewConsultation();
       }
     } catch (e) {
@@ -166,14 +186,29 @@ export function ConversationProvider({ children }) {
   const sendUserMessage = async (messageText) => {
     if (!messageText.trim()) return;
 
-    let currentId = activeId;
+    let currentId = activeIdRef.current;
+
+    const welcomeMsg = {
+      id: "welcome-1",
+      sender: "AI",
+      message: `Hello! I am your MedPath AI Assistant. I can analyze your symptoms and search local clinical departments. What symptoms are you experiencing today?`,
+      messageType: "TEXT",
+      createdAt: new Date().toISOString(),
+    };
+
+    const userMsg = {
+      id: `msg-usr-${Date.now()}`,
+      sender: "USER",
+      message: messageText,
+      messageType: "TEXT",
+      createdAt: new Date().toISOString(),
+    };
 
     // 1. Create a new conversation on backend if not selected yet
     if (!currentId) {
       setLoadingActive(true);
       setError(null);
       try {
-        // Refresh token on mobile to handle focus switch / permission prompt pauses
         if (auth.currentUser) {
           try {
             const freshToken = await auth.currentUser.getIdToken();
@@ -190,7 +225,6 @@ export function ConversationProvider({ children }) {
             selectedLocation
           );
         } catch (firstErr) {
-          // Retry once with forced token refresh if mobile OS location dialog caused a stale token / network pause
           if (auth.currentUser) {
             const freshToken = await auth.currentUser.getIdToken(true);
             localStorage.setItem("medpath_token", freshToken);
@@ -205,22 +239,6 @@ export function ConversationProvider({ children }) {
         if (response && response.success) {
           currentId = response.data.id;
           setActiveId(currentId);
-          // Pre-populate active conversation with the user message and selected location
-          const welcomeMsg = {
-            id: "welcome-1",
-            sender: "AI",
-            message: `Hello, ${user?.displayName || "there"}. I am your MedPath AI Assistant. I can analyze your symptoms and search local clinical departments. What symptoms are you experiencing today?`,
-            messageType: "TEXT",
-            createdAt: new Date().toISOString(),
-          };
-
-          const userMsg = {
-            id: `msg-usr-${Date.now()}`,
-            sender: "USER",
-            message: messageText,
-            messageType: "TEXT",
-            createdAt: new Date().toISOString(),
-          };
 
           setActiveConversation({
             conversation: response.data,
@@ -240,7 +258,7 @@ export function ConversationProvider({ children }) {
             },
             recommendationSnapshots: [],
           });
-          await loadConversations();
+          loadConversations();
         }
       } catch (e) {
         console.error("Failed to create consultation:", e);
@@ -258,13 +276,7 @@ export function ConversationProvider({ children }) {
           ...prev,
           messages: [
             ...prev.messages,
-            {
-              id: `msg-usr-${Date.now()}`,
-              sender: "USER",
-              message: messageText,
-              messageType: "TEXT",
-              createdAt: new Date().toISOString(),
-            },
+            userMsg,
           ],
         };
       });
@@ -273,15 +285,14 @@ export function ConversationProvider({ children }) {
     // 2. Start streaming AI responses
     setIsStreaming(true);
     setStreamText("");
-    setStreamStatus("Initializing triage checks...");
+    setStreamStatus("Analyzing symptoms...");
     setError(null);
 
     conversationService.sendMessageStream(
       currentId,
       messageText,
-      selectedLocation, // Attach current location metadata automatically!
+      selectedLocation,
       (chunk) => {
-        // Callback on each SSE chunk
         if (chunk.type === "status") {
           setStreamStatus(chunk.message);
         } else if (chunk.type === "final") {
@@ -289,25 +300,27 @@ export function ConversationProvider({ children }) {
         }
       },
       async () => {
-        // Callback on stream finish — reload active conversation state from database
-        setIsStreaming(false);
-        setStreamText("");
-        setStreamStatus("");
-        
-        // Reload details and check if discovery is triggered
-        const refreshed = await conversationService.getConversationDetails(currentId);
-        if (refreshed && refreshed.success) {
-          setActiveConversation(refreshed.data);
-          // If taskId exists and conversation status is ACTIVE, start polling!
-          if (refreshed.data.conversation?.taskId && refreshed.data.conversation?.status === "ACTIVE") {
-            startDiscoveryPolling(currentId);
-          } else {
-            await loadConversations();
+        // Seamless handoff: fetch DB state before ending isStreaming
+        try {
+          const refreshed = await conversationService.getConversationDetails(currentId);
+          if (refreshed && refreshed.success) {
+            setActiveConversation(refreshed.data);
+            const taskId = refreshed.data.conversation?.taskId || refreshed.data.patientContext?.taskId;
+            if (taskId && refreshed.data.conversation?.status === "ACTIVE") {
+              startDiscoveryPolling(currentId);
+            } else {
+              loadConversations();
+            }
           }
+        } catch (refreshErr) {
+          console.error("Error refreshing conversation:", refreshErr);
+        } finally {
+          setIsStreaming(false);
+          setStreamText("");
+          setStreamStatus("");
         }
       },
       (streamError) => {
-        // Callback on error
         console.error("SSE Streaming Error:", streamError);
         setIsStreaming(false);
         setStreamStatus("");
@@ -319,7 +332,6 @@ export function ConversationProvider({ children }) {
               ? "Network connection lost during streaming. Please try again."
               : "The AI service is currently unavailable. Please try again later."
         );
-        // Inject error message in active chat log for user transparency
         setActiveConversation(prev => {
           if (!prev) return null;
           return {
@@ -344,13 +356,11 @@ export function ConversationProvider({ children }) {
   const retryLastMessage = async () => {
     if (!activeConversation?.messages?.length) return;
 
-    // Find the last user message
     const lastUserMsg = [...activeConversation.messages]
       .reverse()
       .find(m => m.sender === "USER");
 
     if (lastUserMsg) {
-      // Remove any SYSTEM error messages first
       setActiveConversation(prev => {
         if (!prev) return null;
         return {
@@ -360,15 +370,14 @@ export function ConversationProvider({ children }) {
       });
       setError(null);
 
-      // Re-send the message via streaming
       setIsStreaming(true);
       setStreamText("");
       setStreamStatus("Retrying...");
 
       await conversationService.sendMessageStream(
-        activeId,
+        activeIdRef.current,
         lastUserMsg.message,
-        selectedLocation, // Attach current location metadata automatically!
+        selectedLocation,
         (chunk) => {
           if (chunk.type === "status") {
             setStreamStatus(chunk.message);
@@ -377,18 +386,22 @@ export function ConversationProvider({ children }) {
           }
         },
         async () => {
-          setIsStreaming(false);
-          setStreamText("");
-          setStreamStatus("");
-          
-          const refreshed = await conversationService.getConversationDetails(activeId);
-          if (refreshed && refreshed.success) {
-            setActiveConversation(refreshed.data);
-            if (refreshed.data.conversation?.taskId && refreshed.data.conversation?.status === "ACTIVE") {
-              startDiscoveryPolling(activeId);
-            } else {
-              await loadConversations();
+          try {
+            const refreshed = await conversationService.getConversationDetails(activeIdRef.current);
+            if (refreshed && refreshed.success) {
+              setActiveConversation(refreshed.data);
+              if (refreshed.data.conversation?.taskId && refreshed.data.conversation?.status === "ACTIVE") {
+                startDiscoveryPolling(activeIdRef.current);
+              } else {
+                loadConversations();
+              }
             }
+          } catch (refreshErr) {
+            console.error("Error refreshing conversation on retry:", refreshErr);
+          } finally {
+            setIsStreaming(false);
+            setStreamText("");
+            setStreamStatus("");
           }
         },
         (streamError) => {
@@ -404,7 +417,9 @@ export function ConversationProvider({ children }) {
 
   const dismissError = () => setError(null);
 
+  // Sync conversations when user is logged in
   useEffect(() => {
+    if (authLoading) return; // Prevent wiping state on initial page reload
     if (user) {
       loadConversations();
     } else {
@@ -412,7 +427,7 @@ export function ConversationProvider({ children }) {
       setActiveConversation(null);
       setActiveId(null);
     }
-  }, [user, loadConversations]);
+  }, [user, authLoading, loadConversations]);
 
   // Clean up polling on unmount
   useEffect(() => {

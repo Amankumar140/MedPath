@@ -78,12 +78,31 @@ export function ChatPage() {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [contextSheetOpen, setContextSheetOpen] = useState(false);
   const [sheetClosing, setSheetClosing] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(null);
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
 
   // Auto scroll to bottom
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  // Visual Viewport API for Mobile Keyboard UX Fix
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+
+    const handleViewportChange = () => {
+      setViewportHeight(window.visualViewport.height);
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    window.visualViewport.addEventListener("resize", handleViewportChange);
+    window.visualViewport.addEventListener("scroll", handleViewportChange);
+
+    return () => {
+      window.visualViewport.removeEventListener("resize", handleViewportChange);
+      window.visualViewport.removeEventListener("scroll", handleViewportChange);
+    };
   }, []);
 
   // Sync route param with conversation state
@@ -97,7 +116,7 @@ export function ChatPage() {
         selectConversation(conversationId);
       }
     }
-  }, [conversationId, activeId, activeConversation, isStreaming, startNewConsultation, selectConversation]);
+  }, [conversationId, activeId, isStreaming, startNewConsultation, selectConversation]);
 
   // Show location modal for new consultations
   useEffect(() => {
@@ -117,13 +136,10 @@ export function ChatPage() {
 
   const handleLocationConfirm = (loc) => {
     setShowLocationModal(false);
-    // If there was an initial message waiting, it will be sent via the effect above
-    // since selectedLocation is now set
   };
 
   const handleLocationModalClose = () => {
     setShowLocationModal(false);
-    // If no location selected, go back
     if (!selectedLocation) {
       navigate("/home");
     }
@@ -166,7 +182,6 @@ export function ChatPage() {
   const handleSend = useCallback(async (e) => {
     e.preventDefault();
     if (!input.trim() || isStreaming) return;
-    // If no location selected for a new chat, show modal
     if (conversationId === "new" && !activeId && !selectedLocation) {
       setShowLocationModal(true);
       return;
@@ -206,23 +221,26 @@ export function ChatPage() {
   const isNewRoute = conversationId === "new";
 
   // Helper to parse symptoms list
-  const symptomsList = (!isNewRoute && activeConversation?.patientContext?.symptoms)
+  const symptomsList = activeConversation?.patientContext?.symptoms
     ? activeConversation.patientContext.symptoms.split(",").map(s => s.trim()).filter(Boolean)
-    : (isNewRoute && activeConversation?.patientContext?.symptoms ? activeConversation.patientContext.symptoms.split(",").map(s => s.trim()).filter(Boolean) : []);
+    : [];
 
-  const welcomeMessages = [
-    {
-      id: "welcome-1",
-      sender: "AI",
-      message: `Hello, ${user?.displayName || "there"}. I am your MedPath AI Assistant. I can analyze your symptoms and search local clinical departments. What symptoms are you experiencing today?`,
-      messageType: "TEXT",
-      createdAt: new Date().toISOString(),
-    },
-  ];
+  const defaultWelcomeMessage = {
+    id: "welcome-1",
+    sender: "AI",
+    message: `Hello, ${user?.displayName || "there"}. I am your MedPath AI Assistant. I can analyze your symptoms and search local clinical departments. What symptoms are you experiencing today?`,
+    messageType: "TEXT",
+    createdAt: new Date().toISOString(),
+  };
 
+  const rawMessages = activeConversation?.messages || [];
+  
+  // Ensure the AI welcome message is always displayed at index 0 smoothly
   const messages = isNewRoute
-    ? (activeConversation?.messages?.length ? activeConversation.messages : welcomeMessages)
-    : (activeConversation?.messages || []);
+    ? (rawMessages.length > 0 ? rawMessages : [defaultWelcomeMessage])
+    : (rawMessages.length > 0
+        ? (rawMessages[0].sender === "USER" ? [defaultWelcomeMessage, ...rawMessages] : rawMessages)
+        : (loadingActive ? [] : [defaultWelcomeMessage]));
 
   const context = activeConversation?.patientContext || { symptoms: "", age: null, location: "", isContextComplete: false };
   const recommendations = activeConversation?.recommendationSnapshots || [];
@@ -314,7 +332,12 @@ const ConsultationContextPanel = memo(function ConsultationContextPanel({
 });
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden bg-surface-bright dark:bg-background relative animate-slide-up" role="main" aria-label="AI Consultation Chat">
+    <div
+      className="flex-1 flex flex-col lg:flex-row h-full min-h-[100dvh] lg:min-h-0 overflow-hidden bg-surface-bright dark:bg-background relative animate-slide-up"
+      style={viewportHeight ? { height: `${viewportHeight}px`, maxHeight: `${viewportHeight}px` } : undefined}
+      role="main"
+      aria-label="AI Consultation Chat"
+    >
 
       {/* Location Permission Modal */}
       <LocationPermissionModal
@@ -360,7 +383,7 @@ const ConsultationContextPanel = memo(function ConsultationContextPanel({
         )}
 
         {/* Scrollable messages container */}
-        <div className="flex-grow overflow-y-auto p-3 md:p-6 space-y-5 md:space-y-6" id="chat-messages" role="log" aria-label="Conversation messages">
+        <div className="flex-grow overflow-y-auto p-3 md:p-6 space-y-5 md:space-y-6 min-h-0" id="chat-messages" role="log" aria-label="Conversation messages">
 
           <div className="flex justify-center my-1">
             <span className="text-[10px] md:text-[11px] font-bold text-outline px-3 md:px-3.5 py-1 bg-surface-container-low rounded-full border border-outline-variant/10 uppercase tracking-wider">
@@ -410,7 +433,7 @@ const ConsultationContextPanel = memo(function ConsultationContextPanel({
         </div>
 
         {/* Input Form Panel */}
-        <div className="p-3 md:p-6 bg-surface border-t border-outline-variant/15 z-10 shrink-0 shadow-[0_-8px_32px_rgba(0,30,64,0.02)] pb-safe">
+        <div className="p-3 md:p-6 bg-surface border-t border-outline-variant/15 z-10 shrink-0 shadow-[0_-8px_32px_rgba(0,30,64,0.02)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
           <form onSubmit={handleSend} className="max-w-3xl mx-auto relative flex items-end gap-2 md:gap-3" role="form" aria-label="Message input">
             {/* Attachment Button */}
             <button
@@ -429,6 +452,11 @@ const ConsultationContextPanel = memo(function ConsultationContextPanel({
                 rows="1"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onFocus={() => {
+                  setTimeout(() => {
+                    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                  }, 250);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();

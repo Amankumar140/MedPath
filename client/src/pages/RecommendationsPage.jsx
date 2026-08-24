@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useConversations } from "../context/ConversationContext";
+import { usePatientLocation } from "../context/LocationContext";
 import { SkeletonHospitalCard } from "../components/SkeletonLoader";
 import { ReviewsDashboardPage } from "./ReviewsDashboardPage";
 import { Card, Button, Badge, EmptyState } from "../components/ui";
 import { formatEstimatedCost } from "../components/chat/TypingBubble";
+import { getDirectionsUrl, formatTelUrl, parsePhoneNumbers } from "../utils/location.helpers";
 
 export function RecommendationsPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { conversations, selectConversation, activeConversation, loadingActive } = useConversations();
+  const { selectedLocation } = usePatientLocation();
 
   const [distanceLimit, setDistanceLimit] = useState(15);
   const [specialties, setSpecialties] = useState({
@@ -281,6 +284,11 @@ export function RecommendationsPage() {
                   const confidencePct = Math.round(
                     (hosp.confidenceScore > 1 ? hosp.confidenceScore / 100 : hosp.confidenceScore) * 100
                   );
+                  const ratingVal = hosp.trustScore || hosp.overallRating || hosp.overall_rating || 4.5;
+                  const phoneVal = hosp.phone || hosp.contact_number || hosp.phone_number || hosp.phoneNumber || hosp.contact || hosp.telephone;
+                  const addressVal = hosp.address || hosp.formatted_address || hosp.formattedAddress || hosp.location || hosp.full_address;
+                  const rawDist = hosp.distance || hosp.distance_km;
+                  const validDistance = (rawDist && rawDist !== 'Unknown' && rawDist !== 'Nearby' && !rawDist.includes('Nearby')) ? rawDist : null;
 
                   return (
                     <Card
@@ -292,10 +300,10 @@ export function RecommendationsPage() {
                       <div className="space-y-4.5 flex-1">
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="bg-primary text-on-primary w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shadow-sm" aria-label={`Rank ${hosp.rankingPosition}`}>
-                            {hosp.rankingPosition}
+                            {hosp.rankingPosition || 1}
                           </span>
                           <h3 className="text-headline-md font-bold text-primary dark:text-primary-fixed leading-snug">
-                            {hosp.hospitalName}
+                            {hosp.hospitalName || hosp.hospital_name || hosp.name}
                           </h3>
 
                           {hosp.source && (
@@ -305,25 +313,50 @@ export function RecommendationsPage() {
                           )}
                         </div>
 
+                        {/* Address & Rating summary line */}
+                        {addressVal && (
+                          <p className="text-body-sm text-outline flex items-center gap-1.5 font-medium">
+                            <span className="material-symbols-outlined text-[18px] text-secondary">location_on</span>
+                            <span>{addressVal}</span>
+                          </p>
+                        )}
+
                         <p className="text-body-md text-on-surface-variant whitespace-normal leading-relaxed font-medium">
-                          {hosp.reason}
+                          {hosp.reason || hosp.explanation || hosp.summary}
                         </p>
 
-                        <div className="flex flex-wrap gap-2.5 pt-1">
-                          <div className="flex items-center gap-1.5 text-label-sm font-bold text-on-surface-variant bg-surface-container-low dark:bg-surface-container px-3 py-1.5 rounded-xl border border-outline-variant/10">
-                            <span className="material-symbols-outlined text-[16px] text-secondary" aria-hidden="true">route</span>
-                            <span>{hosp.distance && hosp.distance !== 'Unknown' ? hosp.distance : 'Nearby'}</span>
-                          </div>
+                        <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                          {validDistance && (
+                            <div className="flex items-center gap-1.5 text-label-sm font-bold text-on-surface-variant bg-surface-container-low dark:bg-surface-container px-3 py-1.5 rounded-xl border border-outline-variant/10">
+                              <span className="material-symbols-outlined text-[16px] text-secondary" aria-hidden="true">route</span>
+                              <span>{validDistance}</span>
+                            </div>
+                          )}
 
-                          <div className="flex items-center gap-1.5 text-label-sm font-bold text-on-surface-variant bg-surface-container-low dark:bg-surface-container px-3 py-1.5 rounded-xl border border-outline-variant/10">
-                            <span className="material-symbols-outlined text-[16px] text-tertiary" aria-hidden="true">star</span>
-                            <span>Trust Score: {hosp.trustScore}</span>
+                          <div className="flex items-center gap-1.5 text-label-sm font-bold text-amber-500 bg-surface-container-low dark:bg-surface-container px-3 py-1.5 rounded-xl border border-outline-variant/10">
+                            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">star</span>
+                            <span>Rating: {ratingVal}</span>
                           </div>
 
                           <div className="flex items-center gap-1.5 text-label-sm font-bold text-on-surface-variant bg-surface-container-low dark:bg-surface-container px-3 py-1.5 rounded-xl border border-outline-variant/10">
                             <span className="material-symbols-outlined text-[16px] text-primary" aria-hidden="true">payments</span>
-                            <span>Cost: {formatEstimatedCost(hosp.estimatedCost)}</span>
+                            <span>Cost: {formatEstimatedCost(hosp.estimatedCost || hosp.estimated_cost_range)}</span>
                           </div>
+
+                          {/* Contact Phone (visible on main card, tel: link on mobile) */}
+                          {phoneVal && (
+                            <div className="flex items-center gap-1.5 text-label-sm font-bold text-secondary bg-surface-container-low dark:bg-surface-container px-3 py-1.5 rounded-xl border border-outline-variant/10">
+                              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">call</span>
+                              <a
+                                href={formatTelUrl(parsePhoneNumbers(phoneVal)[0] || phoneVal)}
+                                className="md:hidden underline hover:text-primary"
+                                title="Tap to call hospital"
+                              >
+                                {phoneVal}
+                              </a>
+                              <span className="hidden md:inline">{phoneVal}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -333,7 +366,19 @@ export function RecommendationsPage() {
                           <span className="text-headline-md font-bold text-secondary mt-0.5 block">{confidencePct}% Match</span>
                         </div>
 
-                        <div className="flex flex-wrap lg:flex-nowrap gap-2.5">
+                        <div className="flex flex-wrap lg:flex-nowrap gap-2.5 items-center">
+                          {/* Get Directions Button */}
+                          <a
+                            href={getDirectionsUrl(hosp, selectedLocation)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="premium-gradient-primary text-on-primary hover:opacity-95 transition-all px-4 py-2.5 rounded-xl text-label-sm font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer hover-lift"
+                            aria-label={`Get directions to ${hosp.hospitalName}`}
+                          >
+                            <span className="material-symbols-outlined text-[18px]">directions</span>
+                            Get Directions
+                          </a>
+
                           <Button
                             onClick={() => navigate('/reviews/wizard', {
                               state: {

@@ -9,14 +9,18 @@ from app.prompts.validation import validation_prompt
 from app.prompts.followup import followup_prompt
 from app.tools import merge_patient_contexts
 from app.logging_config import logger
+# pyrefly: ignore [missing-import]
+from langchain_mistralai import ChatMistralAI
+# pyrefly: ignore [missing-import]
+from langchain_groq import ChatGroq
 
 def get_llm(temperature: float = 0.1):
     if settings.GROQ_API_KEY:
         try:
-            from langchain_groq import ChatGroq
+        
             return ChatGroq(
                 groq_api_key=settings.GROQ_API_KEY,
-                model_name="llama-3.3-70b-versatile",
+                model_name=settings.GROQ_MODEL,
                 temperature=temperature,
                 timeout=15,
                 max_retries=2
@@ -25,7 +29,7 @@ def get_llm(temperature: float = 0.1):
             logger.warning(f"Failed to initialize Groq LLM: {e}. Falling back to Mistral.")
 
     if settings.MISTRAL_API_KEY:
-        from langchain_mistralai import ChatMistralAI
+       
         return ChatMistralAI(
             mistral_api_key=settings.MISTRAL_API_KEY,
             model="mistral-small-latest",

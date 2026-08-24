@@ -35,6 +35,15 @@ async function createConversation(userId, locationData = {}) {
         },
       });
 
+      await tx.conversationMessage.create({
+        data: {
+          conversationId: conversation.id,
+          sender: 'AI',
+          message: 'Hello! I am your MedPath AI Assistant. I can analyze your symptoms and search local clinical departments. What symptoms are you experiencing today?',
+          messageType: 'TEXT',
+        },
+      });
+
       return conversation;
     });
   } catch (error) {

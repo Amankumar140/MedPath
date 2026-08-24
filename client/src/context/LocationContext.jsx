@@ -4,6 +4,33 @@ import { useAuth } from "./AuthContext";
 
 const LocationContext = createContext();
 
+const LOCATION_CACHE_TTL = 3600000; // 1 hour in milliseconds
+
+function saveLocationToCache(userId, location) {
+  if (!userId || !location) return;
+  const locWithTimestamp = { ...location, cachedAt: Date.now() };
+  localStorage.setItem(`medpath_location_${userId}`, JSON.stringify(locWithTimestamp));
+}
+
+function getCachedLocation(userId) {
+  if (!userId) return null;
+  const cachedStr = localStorage.getItem(`medpath_location_${userId}`);
+  if (!cachedStr) return null;
+  try {
+    const parsed = JSON.parse(cachedStr);
+    const cachedAt = parsed.cachedAt || parsed.timestamp || 0;
+    if (Date.now() - cachedAt > LOCATION_CACHE_TTL) {
+      console.log("⏱️ Browser location cache expired (> 1 hour TTL). Purging stale cached location.");
+      localStorage.removeItem(`medpath_location_${userId}`);
+      return null;
+    }
+    return parsed;
+  } catch (e) {
+    localStorage.removeItem(`medpath_location_${userId}`);
+    return null;
+  }
+}
+
 export function LocationProvider({ children }) {
   const { user } = useAuth();
   const [savedLocations, setSavedLocations] = useState([]);
@@ -77,7 +104,7 @@ export function LocationProvider({ children }) {
   const selectLocation = useCallback((location) => {
     setSelectedLocation(location);
     if (user && location) {
-      localStorage.setItem(`medpath_location_${user.id}`, JSON.stringify(location));
+      saveLocationToCache(user.id, location);
     }
     setError(null);
   }, [user]);
@@ -157,28 +184,8 @@ export function LocationProvider({ children }) {
 
           setSelectedLocation(loc);
           if (user) {
-            localStorage.setItem(`medpath_location_${user.id}`, JSON.stringify(loc));
-            // Save to user profile in backend as default
-            try {
-              await locationService.createLocation({
-                label: loc.label || "Current Location",
-                formattedAddress: loc.formattedAddress || `${loc.latitude}, ${loc.longitude}`,
-                latitude: loc.latitude || null,
-                longitude: loc.longitude || null,
-                city: loc.city || null,
-                state: loc.state || null,
-                country: loc.country || null,
-                postalCode: loc.postalCode || null,
-                isDefault: true,
-              });
-              // Reload locations
-              const savedRes = await locationService.listLocations();
-              if (savedRes && savedRes.success) {
-                setSavedLocations(savedRes.data);
-              }
-            } catch (e) {
-              console.error("Failed to save automatic location in user profile:", e);
-            }
+            // Only cache in localStorage with 1hr TTL — NOT persisted to DB
+            saveLocationToCache(user.id, loc);
           }
           resolve(loc);
         },
@@ -225,53 +232,27 @@ export function LocationProvider({ children }) {
     const checkAndRequestLocation = async () => {
       setLoadingLocations(true);
       try {
-        // 1. Fetch saved locations from backend
+        // 1. Fetch saved locations from backend (for profile management only)
         const response = await locationService.listLocations();
-        let defaultLoc = null;
         if (response && response.success && response.data) {
           setSavedLocations(response.data);
-          defaultLoc = response.data.find(loc => loc.isDefault);
         }
 
-        // 2. Check localStorage cache
-        const cached = localStorage.getItem(`medpath_location_${user.id}`);
+        // 2. Check localStorage cache (1-hour TTL) — this is the ONLY source of truth
+        //    for the active session location. After expiry, user is re-prompted.
+        const cached = getCachedLocation(user.id);
         if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            setSelectedLocation(parsed);
-            setGpsStatus("granted");
-            setLoadingLocations(false);
-            return;
-          } catch (e) {
-            console.error("Error parsing cached location", e);
-          }
-        }
-
-        // 3. Use default saved location if found
-        if (defaultLoc) {
-          setSelectedLocation(defaultLoc);
+          setSelectedLocation(cached);
           setGpsStatus("granted");
-          localStorage.setItem(`medpath_location_${user.id}`, JSON.stringify(defaultLoc));
           setLoadingLocations(false);
           return;
         }
 
-        // 4. Auto request browser GPS permission if not already denied
-        if (navigator.geolocation) {
-          try {
-            const perm = await navigator.permissions.query({ name: 'geolocation' });
-            if (perm.state === 'denied') {
-              setGpsStatus("denied");
-              setLoadingLocations(false);
-              return;
-            }
-          } catch (e) {
-            // navigator.permissions unsupported, fall through
-          }
-          await requestGPSLocation();
-        } else {
-          setGpsStatus("unavailable");
-        }
+        // 3. Cache expired or missing — user must re-select location.
+        //    Do NOT auto-fallback to DB saved locations; the prompt will appear
+        //    when they navigate to /chat/new.
+        setSelectedLocation(null);
+        setGpsStatus("idle");
       } catch (err) {
         console.error("Error in checkAndRequestLocation:", err);
       } finally {
@@ -329,7 +310,7 @@ export function LocationProvider({ children }) {
           }
 
           setSelectedLocation(loc);
-          localStorage.setItem(`medpath_location_${user.id}`, JSON.stringify(loc));
+          saveLocationToCache(user.id, loc);
         },
         (err) => {
           console.warn("GPS interval refresh failed:", err.message);
