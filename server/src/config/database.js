@@ -23,7 +23,7 @@ if (env.NODE_ENV === 'production') {
           url: env.DATABASE_URL,
         },
       },
-      log: ['query', 'info', 'warn', 'error'],
+      log: ['warn', 'error'],
     });
   }
   prisma = global.prisma;
