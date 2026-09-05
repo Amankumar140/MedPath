@@ -305,10 +305,11 @@ async function sendMessage(id, userId, messageText, locationData = {}) {
         const structuredContext = llmResult.context || {};
         logger.info(`✅ [sendMessage] Context COMPLETE. Passing structured context to Swasthya API for ConversationID=${id}`);
 
+        // Format complete message context for Swasthya AI Core API
+        const fullMessageText = `${messageText}. Symptoms: ${JSON.stringify(structuredContext.symptoms || [])}. Age: ${structuredContext.age || 'unspecified'}. Location: ${JSON.stringify(structuredContext.browser_location || {})}`;
+
         let result;
         try {
-          // Format complete message context for Swasthya AI Core API
-          const fullMessageText = `${messageText}. Symptoms: ${JSON.stringify(structuredContext.symptoms || [])}. Age: ${structuredContext.age || 'unspecified'}. Location: ${JSON.stringify(structuredContext.browser_location || {})}`;
           result = await swasthyaService.analyzeContext(fullMessageText, fullConversation.contextId || null);
         } catch (error) {
           logger.warn(`⚠️ Swasthya API analyzeContext fallback: ${error.message}`);
@@ -343,20 +344,43 @@ async function sendMessage(id, userId, messageText, locationData = {}) {
             session_version: info.session_version || 1,
             is_context_complete: true,
             missing_fields: [],
+            language: {
+              language_code: structuredContext.language || 'en',
+              language_name: 'English',
+              is_greeting: false,
+              is_healthcare_query: true,
+              is_irrelevant: false,
+              detected_intent: 'SYMPTOM_INQUIRY',
+              confidence: 0.95,
+              reasoning: 'Patient consultation context ready for discovery',
+            },
             clinical: {
               symptoms: symptomsArr,
               age_years: typeof structuredContext.age === 'number' ? structuredContext.age : (parseInt(structuredContext.age, 10) || null),
               symptom_duration_days: durationDays,
               severity: structuredContext.severity || null,
               care_intent: structuredContext.care_intent || 'General Triage',
-              budget: { preference: structuredContext.budget || 'Standard' },
+              budget: { preference: String(structuredContext.budget || 'any').toLowerCase() },
               patient_location: {
                 raw_location: loc.formattedAddress || loc.city || fullConversation.patientContext?.formattedAddress || fullConversation.patientContext?.location || 'Unknown',
                 city: cityStr || 'Unknown',
                 latitude: latVal,
                 longitude: lngVal,
               }
-            }
+            },
+            validation: {
+              is_context_sufficient: true,
+              missing_fields: [],
+              needs_followup: false,
+              followup_question: null,
+              followup_question_english: null,
+              context_confidence: 0.95,
+              validation_notes: 'All mandatory fields satisfied.',
+              conversation_state: 'CONTEXT_READY',
+              block_reason: null,
+              block_message: null,
+            },
+            raw_message: fullMessageText,
           };
         }
 
@@ -388,14 +412,15 @@ async function sendMessage(id, userId, messageText, locationData = {}) {
           contextData: sanitizePatientContextForStorage(contextDataForDiscovery) || null,
         });
 
-        // 5.1 Check if we have a recently completed discovery match (within last 4 hours)
-        const match = await conversationRepository.findCompletedContextMatch(
+        // 5.1 Check if discovery reuse is explicitly enabled (default is false: every new consultation triggers a fresh discovery)
+        const enableDiscoveryCache = process.env.ENABLE_DISCOVERY_CACHE === 'true';
+        const match = enableDiscoveryCache ? await conversationRepository.findCompletedContextMatch(
           symptomsStr,
           cityStr,
           latVal,
           lngVal,
           4 // 4-hour window
-        );
+        ) : null;
 
         if (match) {
           logger.info(`⚡ [sendMessage] Cache HIT for symptoms="${symptomsStr}"/location="${cityStr}". Reusing completed discovery from conversation ${match.conversationId}`);
