@@ -17,10 +17,10 @@ export function Select({
   const selectId = id || `select-${Math.random().toString(36).substring(2, 9)}`;
 
   const selectStyles = `
-    block w-full px-4 py-3.5 bg-surface-container-lowest border rounded-xl text-on-surface font-body-md text-body-md 
-    focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary
-    disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-inner cursor-pointer
-    ${error ? "border-error focus:ring-error/30 focus:border-error" : "border-outline"}
+    block w-full px-4 py-3.5 bg-surface-container-low dark:bg-surface-container border-0 border-b-2 rounded-t-xl rounded-b-none text-on-surface font-body-md text-body-md 
+    focus:outline-none focus:border-primary focus:ring-0
+    disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 min-h-[52px] cursor-pointer
+    ${error ? "border-error focus:border-error" : "border-outline hover:border-on-surface-variant"}
   `;
 
   return (
