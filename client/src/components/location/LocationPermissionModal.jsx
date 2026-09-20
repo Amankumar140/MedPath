@@ -77,16 +77,16 @@ export function LocationPermissionModal({ isOpen, onConfirm, onClose }) {
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}></div>
 
       {/* Modal */}
-      <div className="relative w-full sm:max-w-lg max-h-[90vh] overflow-y-auto bg-surface dark:bg-surface-container rounded-t-3xl sm:rounded-3xl shadow-2xl animate-location-slide-up z-10">
+      <div className="relative w-full sm:max-w-lg max-h-[90vh] overflow-y-auto bg-surface-container rounded-t-[28px] sm:rounded-[28px] shadow-2xl animate-location-slide-up z-10 border border-outline-variant/15">
         {/* Header */}
-        <div className="sticky top-0 bg-surface dark:bg-surface-container z-10 px-6 pt-6 pb-4 border-b border-outline-variant/10">
+        <div className="sticky top-0 bg-surface-container z-10 px-6 pt-6 pb-4 border-b border-outline-variant/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-secondary-container text-primary flex items-center justify-center">
                 <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
               </div>
               <div>
-                <h2 className="text-headline-md font-headline-md font-bold text-primary dark:text-primary-fixed">
+                <h2 className="text-headline-md font-headline-md font-bold text-primary">
                   {view === "manual" ? "Enter Address" : view === "confirmed" ? "Location Set" : "Your Location"}
                 </h2>
                 <p className="text-label-sm text-on-surface-variant">
@@ -96,26 +96,27 @@ export function LocationPermissionModal({ isOpen, onConfirm, onClose }) {
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg text-outline-variant hover:text-on-surface hover:bg-surface-container-low transition-all"
+              className="p-2 rounded-full text-outline-variant hover:text-on-surface hover:bg-surface-container-low transition-all cursor-pointer"
               aria-label="Close"
             >
-              <span className="material-symbols-outlined">close</span>
+              <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
           </div>
         </div>
 
-        <div className="px-6 py-5">
+        {/* Content */}
+        <div className="p-6">
           {/* ===== CONFIRMED VIEW ===== */}
           {view === "confirmed" && selectedLocation && (
-            <div className="space-y-5">
-              <div className="bg-tertiary-fixed/10 dark:bg-tertiary/10 border border-tertiary/20 rounded-2xl p-5">
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-surface-container-low rounded-[20px] p-5 border border-outline-variant/15">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-tertiary/15 text-tertiary flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                  <div className="w-8 h-8 rounded-full bg-secondary-container text-primary flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="material-symbols-outlined text-[18px]">check</span>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-label-sm font-semibold text-tertiary uppercase tracking-wider mb-1">
-                      {selectedLocation.label || "Selected Location"}
+                  <div className="flex-1">
+                    <p className="text-label-sm font-semibold text-primary uppercase tracking-wider mb-1">
+                      Selected Location
                     </p>
                     <p className="text-body-md text-on-surface leading-relaxed">
                       {selectedLocation.formattedAddress}
@@ -131,7 +132,7 @@ export function LocationPermissionModal({ isOpen, onConfirm, onClose }) {
 
               <button
                 onClick={handleChangeLocation}
-                className="w-full py-2.5 text-label-md text-secondary hover:text-primary font-medium transition-colors flex items-center justify-center gap-1"
+                className="w-full py-2.5 text-label-md text-primary hover:underline font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px]">swap_horiz</span>
                 Change Location
@@ -139,7 +140,7 @@ export function LocationPermissionModal({ isOpen, onConfirm, onClose }) {
 
               <button
                 onClick={handleConfirm}
-                className="w-full py-4 rounded-xl bg-primary text-on-primary font-label-md text-label-md hover:bg-primary/95 transition-all shadow-md flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-full bg-primary text-on-primary font-medium text-label-md hover:bg-primary/90 active:bg-primary/80 transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
                 Start Consultation
