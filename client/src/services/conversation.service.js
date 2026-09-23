@@ -143,6 +143,15 @@ export const conversationService = {
     const response = await api.get(`/conversations/${id}/discovery/progress`);
     return response.data;
   },
+
+  /**
+   * Fetch a specific recommendation snapshot by ID directly from the backend.
+   * @param {string} snapshotId - Snapshot UUID.
+   */
+  async getRecommendationSnapshot(snapshotId) {
+    const response = await api.get(`/conversations/recommendations/${snapshotId}`);
+    return response.data;
+  },
 };
 
 export default conversationService;

@@ -147,7 +147,8 @@ export function ConversationProvider({ children }) {
       if (response && response.success) {
         setActiveConversation(response.data);
         const taskId = response.data.conversation?.taskId || response.data.patientContext?.taskId;
-        if (taskId && response.data.conversation?.status === "ACTIVE") {
+        const hasRecs = (response.data.recommendationSnapshots?.length || 0) > 0;
+        if (taskId && (!hasRecs || response.data.conversation?.status === "ACTIVE")) {
           startDiscoveryPolling(id);
         }
       }
@@ -306,7 +307,8 @@ export function ConversationProvider({ children }) {
           if (refreshed && refreshed.success) {
             setActiveConversation(refreshed.data);
             const taskId = refreshed.data.conversation?.taskId || refreshed.data.patientContext?.taskId;
-            if (taskId && refreshed.data.conversation?.status === "ACTIVE") {
+            const hasRecs = (refreshed.data.recommendationSnapshots?.length || 0) > 0;
+            if (taskId && (!hasRecs || refreshed.data.conversation?.status === "ACTIVE")) {
               startDiscoveryPolling(currentId);
             } else {
               loadConversations();
@@ -390,7 +392,9 @@ export function ConversationProvider({ children }) {
             const refreshed = await conversationService.getConversationDetails(activeIdRef.current);
             if (refreshed && refreshed.success) {
               setActiveConversation(refreshed.data);
-              if (refreshed.data.conversation?.taskId && refreshed.data.conversation?.status === "ACTIVE") {
+              const taskId = refreshed.data.conversation?.taskId || refreshed.data.patientContext?.taskId;
+              const hasRecs = (refreshed.data.recommendationSnapshots?.length || 0) > 0;
+              if (taskId && (!hasRecs || refreshed.data.conversation?.status === "ACTIVE")) {
                 startDiscoveryPolling(activeIdRef.current);
               } else {
                 loadConversations();
