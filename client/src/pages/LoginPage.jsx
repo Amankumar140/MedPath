@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import logoImage from "../assets/medpath_logo.png";
+import MedPathLogo from "../components/MedPathLogo";
 
 export function LoginPage() {
   const { loginWithEmail, loginWithGoogle } = useAuth();
@@ -60,7 +60,7 @@ export function LoginPage() {
 
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-3 mb-2 hover:opacity-90 transition-all cursor-pointer">
-            <img alt="MedPath" className="w-10 h-10 object-contain" src={logoImage} />
+            <MedPathLogo size={40} className="rounded-xl shadow-xs" />
             <span className="text-on-primary font-bold text-2xl tracking-tight">MedPath</span>
           </Link>
         </div>
@@ -120,7 +120,7 @@ export function LoginPage() {
         <main className="w-full max-w-[420px] px-6 sm:px-8 z-10 relative py-8">
           {/* Mobile-only logo */}
           <Link to="/" className="lg:hidden mb-8 flex items-center gap-3 justify-center hover:opacity-90 transition-all cursor-pointer">
-            <img alt="MedPath" className="w-10 h-10 object-contain" src={logoImage} />
+            <MedPathLogo size={40} className="rounded-xl shadow-xs" />
             <span className="font-bold text-2xl tracking-tight text-primary">MedPath</span>
           </Link>
 
@@ -143,7 +143,7 @@ export function LoginPage() {
             <button
               onClick={handleGoogleLogin}
               disabled={loadingGoogle}
-              className="w-full flex justify-center items-center py-2.5 px-4 border border-outline-variant/40 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low hover:border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 cursor-pointer disabled:opacity-60 group"
+              className="w-full flex justify-center items-center py-2.5 px-4 border border-outline rounded-full bg-surface-container-low hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 cursor-pointer disabled:opacity-40 group"
               type="button"
             >
               {loadingGoogle ? (
@@ -160,8 +160,6 @@ export function LoginPage() {
                 </>
               )}
             </button>
-
-
           </div>
 
           {/* Divider */}
@@ -183,7 +181,7 @@ export function LoginPage() {
                   <span className="material-symbols-outlined text-outline text-[18px]">mail</span>
                 </div>
                 <input
-                  className="block w-full pl-10 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-xl text-on-surface text-sm placeholder:text-outline/60 focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all duration-200"
+                  className="block w-full pl-10 pr-4 py-3 bg-surface-container-low dark:bg-surface-container border-0 border-b-2 border-outline rounded-t-xl rounded-b-none text-on-surface text-sm placeholder:text-outline focus:border-primary focus:outline-none transition-all duration-200"
                   id="email"
                   name="email"
                   placeholder="name@example.com"
@@ -203,7 +201,7 @@ export function LoginPage() {
                   <span className="material-symbols-outlined text-outline text-[18px]">lock</span>
                 </div>
                 <input
-                  className="block w-full pl-10 pr-11 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-xl text-on-surface text-sm placeholder:text-outline/60 focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all duration-200"
+                  className="block w-full pl-10 pr-11 py-3 bg-surface-container-low dark:bg-surface-container border-0 border-b-2 border-outline rounded-t-xl rounded-b-none text-on-surface text-sm placeholder:text-outline focus:border-primary focus:outline-none transition-all duration-200"
                   id="password"
                   name="password"
                   placeholder="••••••••"
@@ -241,7 +239,7 @@ export function LoginPage() {
 
             <button
               disabled={loadingSubmit}
-              className="w-full flex justify-center items-center py-2.5 px-4 rounded-xl font-medium text-sm text-on-primary bg-primary hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 disabled:opacity-60 cursor-pointer shadow-lg shadow-primary/20 active:scale-[0.98]"
+              className="w-full flex justify-center items-center py-3 px-6 rounded-full font-medium text-sm text-on-primary bg-primary hover:bg-primary/90 active:bg-primary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 disabled:opacity-40 cursor-pointer shadow-sm hover:shadow-md active:scale-95"
               type="submit"
             >
               {loadingSubmit ? (

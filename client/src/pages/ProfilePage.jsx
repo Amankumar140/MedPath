@@ -90,19 +90,19 @@ export function ProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Profile Card Summary */}
-        <Card variant="glass" hoverLift className="p-6 flex flex-col items-center text-center space-y-5 shadow-md">
-          <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-primary-container shadow-sm relative group">
+        <Card variant="container" hoverLift className="p-6 flex flex-col items-center text-center space-y-5 shadow-sm rounded-[24px]">
+          <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-primary/20 shadow-sm relative group">
             {user?.photoUrl ? (
               <img src={user.photoUrl} alt="User Profile" className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full bg-primary-container text-primary flex items-center justify-center font-bold text-2xl uppercase" aria-label={user?.displayName || "User"}>
+              <div className="w-full h-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-2xl uppercase" aria-label={user?.displayName || "User"}>
                 {user?.displayName ? user.displayName.substring(0, 2) : "US"}
               </div>
             )}
           </div>
 
           <div>
-            <h3 className="text-headline-md font-bold text-primary dark:text-primary-fixed">
+            <h3 className="text-headline-md font-bold text-primary">
               {user?.displayName || "MedPath User"}
             </h3>
             <p className="text-body-md text-on-surface-variant font-medium mt-1">{user?.email}</p>
@@ -110,9 +110,9 @@ export function ProfilePage() {
 
           <Button
             onClick={handleLogout}
-            variant="ghost"
+            variant="outline"
             icon="logout"
-            className="w-full bg-surface-container-low hover:bg-error-container/10 text-error border border-outline-variant/30 py-3.5 rounded-xl font-bold text-label-md"
+            className="w-full text-error border-error/40 hover:bg-error-container/20 py-3 rounded-full font-medium text-label-md"
             ariaLabel="Sign out of MedPath"
           >
             Sign Out
@@ -120,18 +120,18 @@ export function ProfilePage() {
         </Card>
 
         {/* Edit Settings form */}
-        <Card variant="glass" className="lg:col-span-2 p-6 md:p-8 space-y-6 shadow-md">
-          <h3 className="text-headline-md font-bold text-primary dark:text-primary-fixed">Edit Information</h3>
+        <Card variant="container" className="lg:col-span-2 p-6 md:p-8 space-y-6 shadow-sm rounded-[24px]">
+          <h3 className="text-headline-md font-bold text-primary">Edit Information</h3>
 
           {successMsg && (
-            <div className="p-3.5 bg-tertiary-container/20 text-on-tertiary-container rounded-xl text-sm border border-tertiary/10 flex items-center gap-2 animate-fade-in" role="status">
+            <div className="p-3.5 bg-secondary-container text-on-secondary-container rounded-2xl text-sm border border-secondary-container flex items-center gap-2 animate-fade-in" role="status">
               <span className="material-symbols-outlined text-sm" aria-hidden="true">check_circle</span>
               <span className="font-semibold">{successMsg}</span>
             </div>
           )}
 
           {errorMsg && (
-            <div className="p-3.5 bg-error-container/20 text-on-error-container rounded-xl text-sm border border-error/10 flex items-center gap-2 animate-fade-in" role="alert">
+            <div className="p-3.5 bg-error-container text-on-error-container rounded-2xl text-sm border border-error/20 flex items-center gap-2 animate-fade-in" role="alert">
               <span className="material-symbols-outlined text-sm" aria-hidden="true">error</span>
               <span className="font-semibold">{errorMsg}</span>
             </div>
@@ -164,7 +164,7 @@ export function ProfilePage() {
                 <button
                   type="button"
                   onClick={toggleTheme}
-                  className="w-12 h-6 rounded-full bg-outline-variant/40 relative transition-all duration-300 cursor-pointer"
+                  className="w-12 h-6 rounded-full bg-surface-container-high relative transition-all duration-300 cursor-pointer border border-outline-variant/30"
                   role="switch"
                   aria-checked={theme === "dark"}
                   aria-label="Toggle dark mode"
@@ -173,7 +173,7 @@ export function ProfilePage() {
                     theme === "dark" ? "left-[26px]" : "left-0.5"
                   }`}></span>
                 </button>
-                <span className="font-bold text-on-surface">Toggle {theme === "dark" ? "Light" : "Dark"} Mode</span>
+                <span className="font-medium text-on-surface">Toggle {theme === "dark" ? "Light" : "Dark"} Mode</span>
               </div>
 
               <Button
@@ -190,7 +190,7 @@ export function ProfilePage() {
         </Card>
 
         {/* Saved Locations Section */}
-        <Card variant="glass" className="p-6 md:p-8 border border-outline-variant/15 shadow-md">
+        <Card variant="container" className="p-6 md:p-8 border border-outline-variant/15 shadow-sm rounded-[24px]">
           <LocationSettings />
         </Card>
 
