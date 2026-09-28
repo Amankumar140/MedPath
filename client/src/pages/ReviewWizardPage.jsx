@@ -2,11 +2,13 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import reviewService from "../services/review.service";
 import { useTheme } from "../context/ThemeContext";
+import { useToast } from "../components/Toast";
 
 export function ReviewWizardPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { showToast } = useToast();
 
   // Inputs passed from route state (or fallback if empty)
   const routeState = location.state || {};
@@ -233,7 +235,7 @@ export function ReviewWizardPage() {
     } catch (err) {
       console.error("Failed to save draft review:", err);
       if (!quiet) {
-        alert("Failed to auto-save draft. Please check your network.");
+        showToast("Failed to auto-save draft. Please check your network.", "error", "Draft Error");
       }
       return false;
     } finally {
@@ -369,7 +371,7 @@ export function ReviewWizardPage() {
           setCurrentStepIndex(targetQIndex);
         }
       } else {
-        alert("Submission failed. Ensure all fields are filled correctly.");
+        showToast("Submission failed. Ensure all fields are filled correctly.", "error", "Submission Error");
       }
     } finally {
       setIsSubmitting(false);
@@ -457,25 +459,25 @@ export function ReviewWizardPage() {
     <div className="flex-grow p-4 md:p-6 bg-surface-bright dark:bg-background overflow-y-auto max-w-container-max mx-auto w-full flex flex-col items-center justify-center min-h-[85vh] animate-slide-up">
       
       {/* Wizard Card Container */}
-      <div className="w-full max-w-2xl premium-glass-card rounded-[28px] border border-outline-variant/15 flex flex-col overflow-hidden relative min-h-[480px]">
+      <div className="w-full max-w-2xl bg-surface-container rounded-[28px] border border-outline-variant/15 flex flex-col overflow-hidden relative min-h-[480px] shadow-sm">
         
         {/* Top Progress bar and Indicator */}
-        <div className="bg-surface-container-low dark:bg-surface-container-high/30 p-5 border-b border-outline-variant/10">
+        <div className="bg-surface-container-low p-5 border-b border-outline-variant/10">
           <div className="flex justify-between items-center mb-3">
             <div>
-              <span className="text-[10px] text-outline uppercase tracking-wider font-bold block">
+              <span className="text-[10px] text-outline uppercase tracking-wider font-medium block">
                 {hospitalName}
               </span>
-              <h3 className="text-label-lg font-bold text-primary dark:text-primary-fixed">
+              <h3 className="text-label-lg font-bold text-primary">
                 Question {currentStepIndex + 1} of {activeQuestions.length}
               </h3>
             </div>
             
             {/* Auto-saved draft toast pill inside header */}
-            <div className="flex items-center gap-1.5 font-bold">
+            <div className="flex items-center gap-1.5 font-medium">
               {saveSuccess ? (
-                <span className="bg-success-container/30 text-success text-xs px-2.5 py-1 rounded-full flex items-center gap-1 animate-pulse">
-                  <span className="material-symbols-outlined text-[12px] font-bold">check</span>
+                <span className="bg-secondary-container text-primary text-xs px-3 py-1 rounded-full flex items-center gap-1 animate-pulse">
+                  <span className="material-symbols-outlined text-[14px] font-bold">check</span>
                   Draft Saved
                 </span>
               ) : isSaving ? (
@@ -484,7 +486,7 @@ export function ReviewWizardPage() {
                   Saving...
                 </span>
               ) : (
-                <span className="text-outline-variant dark:text-outline text-xs italic">
+                <span className="text-outline text-xs italic">
                   Progress saved automatically
                 </span>
               )}
@@ -492,7 +494,7 @@ export function ReviewWizardPage() {
           </div>
 
           {/* Progress bar line */}
-          <div className="w-full bg-outline-variant/30 h-2 rounded-full overflow-hidden">
+          <div className="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
             <div 
               className="bg-primary h-full transition-all duration-300 rounded-full" 
               style={{ width: `${progressPercent}%` }}
@@ -746,13 +748,13 @@ export function ReviewWizardPage() {
         </div>
 
         {/* Bottom Control Buttons Navigation */}
-        <div className="bg-surface-container-low dark:bg-surface-container-high/30 p-5 border-t border-outline-variant/10 flex justify-between items-center gap-3">
+        <div className="bg-surface-container-low p-5 border-t border-outline-variant/10 flex justify-between items-center gap-3">
           
           {/* Left Buttons: Resume Later / Previous */}
           <div className="flex gap-2">
             <button
               onClick={handleResumeLater}
-              className="px-4 py-2.5 rounded-lg border border-outline-variant/40 hover:bg-surface text-label-md font-label-md transition-all cursor-pointer text-sm"
+              className="px-5 py-2.5 rounded-full border border-outline text-primary hover:bg-primary/10 text-label-md font-medium transition-all cursor-pointer text-sm active:scale-95"
               aria-label="Save and resume later"
               disabled={isSaving || isSubmitting}
             >
@@ -762,7 +764,7 @@ export function ReviewWizardPage() {
             {!isFirstStep && (
               <button
                 onClick={handlePrev}
-                className="px-4 py-2.5 rounded-lg hover:bg-surface text-label-md font-label-md transition-all cursor-pointer text-sm flex items-center gap-1 text-on-surface"
+                className="px-5 py-2.5 rounded-full hover:bg-surface-container-high text-label-md font-medium transition-all cursor-pointer text-sm flex items-center gap-1 text-on-surface active:scale-95"
                 aria-label="Go to previous question"
                 disabled={isSaving || isSubmitting}
               >
@@ -777,7 +779,7 @@ export function ReviewWizardPage() {
             {/* Manual Save Draft Button */}
             <button
               onClick={() => saveDraft(false)}
-              className="px-4 py-2.5 rounded-lg text-secondary hover:bg-secondary/5 transition-all text-sm font-semibold cursor-pointer flex items-center gap-1"
+              className="px-4 py-2.5 rounded-full text-primary hover:bg-primary/10 transition-all text-sm font-medium cursor-pointer flex items-center gap-1"
               aria-label="Save current draft"
               disabled={isSaving || isSubmitting}
             >
@@ -787,7 +789,7 @@ export function ReviewWizardPage() {
             {isLastStep ? (
               <button
                 onClick={handleSubmit}
-                className="bg-primary text-on-primary hover:opacity-95 transition-all px-5 py-2.5 rounded-lg font-label-md cursor-pointer flex items-center gap-1.5 shadow-sm text-sm"
+                className="bg-primary text-on-primary hover:bg-primary/90 active:bg-primary/80 transition-all px-6 py-2.5 rounded-full font-medium cursor-pointer flex items-center gap-1.5 shadow-sm text-sm active:scale-95"
                 aria-label="Submit finished review"
                 disabled={isSubmitting || isSaving}
               >
@@ -806,7 +808,7 @@ export function ReviewWizardPage() {
             ) : (
               <button
                 onClick={handleNext}
-                className="bg-primary text-on-primary hover:opacity-95 transition-all px-5 py-2.5 rounded-lg font-label-md cursor-pointer flex items-center gap-1 text-sm shadow-sm"
+                className="bg-primary text-on-primary hover:bg-primary/90 active:bg-primary/80 transition-all px-6 py-2.5 rounded-full font-medium cursor-pointer flex items-center gap-1 text-sm shadow-sm active:scale-95"
                 aria-label="Go to next question"
                 disabled={isSaving || isSubmitting}
               >

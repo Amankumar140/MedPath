@@ -2,11 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import reviewService from "../services/review.service";
 import { useTheme } from "../context/ThemeContext";
+import { useToast } from "../components/Toast";
 import { Card, Button, Badge, EmptyState } from "../components/ui";
 
 export function ReviewsDashboardPage() {
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { showToast } = useToast();
   
   const [activeTab, setActiveTab] = useState("pending"); // pending, drafts, completed
   const [history, setHistory] = useState({ completed: [], drafts: [], pending: [] });
@@ -59,7 +61,7 @@ export function ReviewsDashboardPage() {
       await fetchReviews();
     } catch (err) {
       console.error("Failed to delete review:", err);
-      alert("Failed to delete review. Please try again.");
+      showToast("Failed to delete review. Please try again.", "error");
     } finally {
       setDeletingId(null);
     }
@@ -115,9 +117,9 @@ export function ReviewsDashboardPage() {
       <div className="border-b border-outline-variant/15 flex gap-4 md:gap-8 mb-6 overflow-x-auto scrollbar-none" role="tablist">
         <button
           onClick={() => setActiveTab("pending")}
-          className={`pb-3.5 text-label-lg font-bold border-b-3 transition-all relative shrink-0 cursor-pointer ${
+          className={`pb-3 text-label-lg font-medium border-b-2 transition-all relative shrink-0 cursor-pointer ${
             activeTab === "pending"
-              ? "border-primary text-primary dark:border-primary-fixed dark:text-primary-fixed font-bold text-[15px]"
+              ? "border-primary text-primary font-bold"
               : "border-transparent text-outline hover:text-on-surface"
           }`}
           role="tab"
@@ -126,7 +128,7 @@ export function ReviewsDashboardPage() {
         >
           Pending Reviews
           {history.pending.length > 0 && (
-            <span className="ml-2 bg-secondary text-on-secondary text-xs px-2 py-0.5 rounded-full font-bold">
+            <span className="ml-2 bg-secondary-container text-on-secondary-container text-xs px-2.5 py-0.5 rounded-full font-medium">
               {history.pending.length}
             </span>
           )}
@@ -134,18 +136,18 @@ export function ReviewsDashboardPage() {
 
         <button
           onClick={() => setActiveTab("drafts")}
-          className={`pb-3.5 text-label-lg font-bold border-b-3 transition-all relative shrink-0 cursor-pointer ${
+          className={`pb-3 text-label-lg font-medium border-b-2 transition-all relative shrink-0 cursor-pointer ${
             activeTab === "drafts"
-              ? "border-primary text-primary dark:border-primary-fixed dark:text-primary-fixed font-bold text-[15px]"
+              ? "border-primary text-primary font-bold"
               : "border-transparent text-outline hover:text-on-surface"
           }`}
           role="tab"
           aria-selected={activeTab === "drafts"}
           aria-controls="drafts-panel"
         >
-          Draft Reviews
+          Drafts
           {history.drafts.length > 0 && (
-            <span className="ml-2 bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+            <span className="ml-2 bg-secondary-container text-on-secondary-container text-xs px-2.5 py-0.5 rounded-full font-medium">
               {history.drafts.length}
             </span>
           )}
@@ -153,9 +155,9 @@ export function ReviewsDashboardPage() {
 
         <button
           onClick={() => setActiveTab("completed")}
-          className={`pb-3.5 text-label-lg font-bold border-b-3 transition-all relative shrink-0 cursor-pointer ${
+          className={`pb-3 text-label-lg font-medium border-b-2 transition-all relative shrink-0 cursor-pointer ${
             activeTab === "completed"
-              ? "border-primary text-primary dark:border-primary-fixed dark:text-primary-fixed font-bold text-[15px]"
+              ? "border-primary text-primary font-bold"
               : "border-transparent text-outline hover:text-on-surface"
           }`}
           role="tab"
@@ -164,7 +166,7 @@ export function ReviewsDashboardPage() {
         >
           Completed Reviews
           {history.completed.length > 0 && (
-            <span className="ml-2 bg-primary-container text-primary dark:bg-primary-container/30 dark:text-primary-fixed text-xs px-2 py-0.5 rounded-full font-bold">
+            <span className="ml-2 bg-secondary-container text-on-secondary-container text-xs px-2.5 py-0.5 rounded-full font-medium">
               {history.completed.length}
             </span>
           )}
