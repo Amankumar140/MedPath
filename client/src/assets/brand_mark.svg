@@ -1,5 +1,101 @@
-<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="100" cy="100" r="80" fill="#003366" />
-  <path d="M70 100L90 120L130 80" stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
-  <path d="M100 20V180M20 100H180" stroke="white" stroke-width="4" stroke-opacity="0.2" />
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#0B1120" />
+    </radialGradient>
+
+    <!-- Path Trajectory Gradient: Cyan to Emerald -->
+    <linearGradient id="pathGrad" x1="20%" y1="10%" x2="90%" y2="90%">
+      <stop offset="0%" stop-color="#00D2FF" />
+      <stop offset="50%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#10B981" />
+    </linearGradient>
+
+    <!-- Center Medical Cross Gradient -->
+    <linearGradient id="crossGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E0F2FE" />
+    </linearGradient>
+
+    <!-- Subtle Glow Filter -->
+    <filter id="subtleGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Circular Outer Badge -->
+  <circle cx="128" cy="128" r="120" fill="url(#bgGrad)" stroke="#334155" stroke-width="2" />
+
+  <!-- Navigation Orbit Outer Glow -->
+  <path
+    d="M 128 42 A 86 86 0 1 0 214 128"
+    stroke="url(#pathGrad)"
+    stroke-width="14"
+    stroke-linecap="round"
+    opacity="0.35"
+    filter="url(#subtleGlow)"
+  />
+
+  <!-- Primary Navigation Orbital Arc -->
+  <path
+    d="M 128 42 A 86 86 0 1 0 214 128"
+    stroke="url(#pathGrad)"
+    stroke-width="10"
+    stroke-linecap="round"
+  />
+
+  <!-- Trajectory Track on the right -->
+  <path
+    d="M 214 128 A 86 86 0 0 0 188 68"
+    stroke="url(#pathGrad)"
+    stroke-width="4"
+    stroke-dasharray="4 6"
+    opacity="0.75"
+  />
+
+  <!-- Waypoint Nodes on the Path -->
+  <!-- Top Node -->
+  <circle cx="196" cy="80" r="7.5" fill="#00D2FF" stroke="#0B1120" stroke-width="2.5" />
+  <circle cx="196" cy="80" r="3" fill="#FFFFFF" />
+
+  <!-- Middle Node -->
+  <circle cx="214" cy="128" r="8.5" fill="#0284C7" stroke="#0B1120" stroke-width="2.5" />
+  <circle cx="214" cy="128" r="3.5" fill="#FFFFFF" />
+
+  <!-- Bottom Node -->
+  <circle cx="190" cy="178" r="7.5" fill="#10B981" stroke="#0B1120" stroke-width="2.5" />
+  <circle cx="190" cy="178" r="3" fill="#FFFFFF" />
+
+  <!-- Central Medical Plus Cross with smooth rounded corners -->
+  <g filter="url(#subtleGlow)">
+    <path
+      d="
+        M 112 78
+        C 112 72.5 116.5 68 122 68
+        L 134 68
+        C 139.5 68 144 72.5 144 78
+        L 144 112
+        L 178 112
+        C 183.5 112 188 116.5 188 122
+        L 188 134
+        C 188 139.5 183.5 144 178 144
+        L 144 144
+        L 144 178
+        C 144 183.5 139.5 188 134 188
+        L 122 188
+        C 116.5 188 112 183.5 112 178
+        L 112 144
+        L 78 144
+        C 72.5 144 68 139.5 68 134
+        L 68 122
+        C 68 116.5 72.5 112 78 112
+        L 112 112
+        Z
+      "
+      fill="url(#crossGrad)"
+    />
+  </g>
 </svg>

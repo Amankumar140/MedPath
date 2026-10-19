@@ -14,10 +14,10 @@ export function EmptyState({
 }) {
   return (
     <div 
-      className={`premium-glass-card rounded-[28px] p-12 text-center flex flex-col items-center justify-center max-w-xl mx-auto my-8 shadow-lg animate-fade-in ${className}`}
+      className={`bg-surface-container rounded-[28px] border border-outline-variant/15 p-12 text-center flex flex-col items-center justify-center max-w-xl mx-auto my-8 shadow-sm animate-fade-in ${className}`}
       {...props}
     >
-      <div className="w-16 h-16 rounded-full bg-secondary-container/20 text-secondary flex items-center justify-center mb-5 border border-secondary/15">
+      <div className="w-16 h-16 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center mb-5">
         <span className="material-symbols-outlined text-[32px] animate-pulse" aria-hidden="true">
           {icon}
         </span>

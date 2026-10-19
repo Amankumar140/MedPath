@@ -20,7 +20,6 @@ function getCachedLocation(userId) {
     const parsed = JSON.parse(cachedStr);
     const cachedAt = parsed.cachedAt || parsed.timestamp || 0;
     if (Date.now() - cachedAt > LOCATION_CACHE_TTL) {
-      console.log("⏱️ Browser location cache expired (> 1 hour TTL). Purging stale cached location.");
       localStorage.removeItem(`medpath_location_${userId}`);
       return null;
     }
@@ -268,7 +267,6 @@ export function LocationProvider({ children }) {
     if (!user || gpsStatus !== "granted") return;
 
     const intervalId = setInterval(() => {
-      console.log("Refreshing browser GPS location (30-minute interval)...");
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude, accuracy } = position.coords;

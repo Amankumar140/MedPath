@@ -44,9 +44,8 @@ export function AnimatedBotAvatar({ className = "", isStreaming = false }) {
   return (
     <motion.div
       variants={floatVariants}
-      animate="animate"
       initial={{ opacity: 0, scale: 0.85 }}
-      animate={{ opacity: 1, scale: 1 }}
+      animate="animate"
       className={`relative w-9 h-9 flex-shrink-0 flex items-center justify-center select-none ${className}`}
     >
       {/* 1. Pulsing Outer Glow */}

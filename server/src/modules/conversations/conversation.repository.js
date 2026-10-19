@@ -1,4 +1,5 @@
 const { prisma, handlePrismaError } = require('../../config/database');
+const { cloneSnapshotData } = require('../../services/hospital.normalizer');
 
 /**
  * Creates a new conversation and its associated empty PatientContext in a transaction.
@@ -71,7 +72,9 @@ async function findConversationById(id) {
           },
         },
         patientContext: true,
-        recommendationSnapshots: true,
+        recommendationSnapshots: {
+          orderBy: { rankingPosition: 'asc' },
+        },
       },
     });
   } catch (error) {
@@ -219,7 +222,17 @@ async function findRecommendationSnapshotsByConversationId(conversationId) {
   try {
     return await prisma.recommendationSnapshot.findMany({
       where: { conversationId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { rankingPosition: 'asc' },
+    });
+  } catch (error) {
+    throw handlePrismaError(error);
+  }
+}
+
+async function findRecommendationSnapshotById(id) {
+  try {
+    return await prisma.recommendationSnapshot.findUnique({
+      where: { id },
     });
   } catch (error) {
     throw handlePrismaError(error);
@@ -303,6 +316,7 @@ async function reuseCompletedDiscovery(sourceConvoId, targetConvoId, summaryMsg)
     return await prisma.$transaction(async (tx) => {
       const recommendations = await tx.recommendationSnapshot.findMany({
         where: { conversationId: sourceConvoId },
+        orderBy: { rankingPosition: 'asc' },
       });
 
       await tx.conversation.update({
@@ -321,35 +335,12 @@ async function reuseCompletedDiscovery(sourceConvoId, targetConvoId, summaryMsg)
         },
       });
 
+      // Use cloneSnapshotData to copy ALL canonical fields dynamically
+      // This prevents the bug where adding new schema fields requires
+      // manually updating this copy list
       for (const hosp of recommendations) {
         await tx.recommendationSnapshot.create({
-          data: {
-            conversationId: targetConvoId,
-            hospitalName: hosp.hospitalName,
-            rankingPosition: hosp.rankingPosition,
-            confidenceScore: hosp.confidenceScore,
-            trustScore: hosp.trustScore,
-            estimatedCost: hosp.estimatedCost,
-            distance: hosp.distance,
-            latitude: hosp.latitude,
-            longitude: hosp.longitude,
-            reason: hosp.reason,
-            source: hosp.source,
-            summary: hosp.summary,
-            pros: hosp.pros,
-            cons: hosp.cons,
-            overallScore: hosp.overallScore,
-            travelTime: hosp.travelTime,
-            website: hosp.website,
-            phone: hosp.phone,
-            address: hosp.address,
-            hospitalType: hosp.hospitalType,
-            accreditations: hosp.accreditations,
-            reviewCount: hosp.reviewCount,
-            hasEmergency: hosp.hasEmergency,
-            hasIcu: hosp.hasIcu,
-            estimatedCostRange: hosp.estimatedCostRange,
-          },
+          data: cloneSnapshotData(targetConvoId, hosp),
         });
       }
 
@@ -377,6 +368,7 @@ module.exports = {
   updateConversation,
   createRecommendationSnapshot,
   findRecommendationSnapshotsByConversationId,
+  findRecommendationSnapshotById,
   findCompletedContextMatch,
   reuseCompletedDiscovery,
 };

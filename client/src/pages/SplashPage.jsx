@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import logoImage from "../assets/medpath_logo.png";
+import MedPathLogo from "../components/MedPathLogo";
 
 export function SplashPage() {
   const { user, loading } = useAuth();
@@ -83,7 +83,7 @@ export function SplashPage() {
       <header className="fixed top-0 w-full bg-surface-container-lowest/80 backdrop-blur-md z-50 border-b border-outline-variant shadow-sm transition-all duration-300">
         <div className="flex justify-between items-center px-margin py-sp-sm max-w-7xl mx-auto">
           <div className="flex items-center gap-sp-sm">
-            <img alt="MedPath Logo" className="w-10 h-10 object-contain" src={logoImage} />
+            <MedPathLogo size={38} className="rounded-xl shadow-xs" />
             <span className="font-headline-lg text-headline-lg font-bold text-primary">MedPath</span>
           </div>
           <nav className="hidden md:flex items-center gap-sp-md">
@@ -106,7 +106,7 @@ export function SplashPage() {
             {user ? (
               <button 
                 onClick={() => navigate("/home")}
-                className="bg-primary text-on-primary px-sp-md py-sp-xs rounded-lg font-body-md text-body-md font-semibold transition-all hover:brightness-110 active:scale-95 shadow-sm cursor-pointer"
+                className="bg-primary text-on-primary px-6 py-2.5 rounded-full font-medium text-body-md transition-all hover:bg-primary/90 active:bg-primary/80 active:scale-95 shadow-sm cursor-pointer"
               >
                 Go to Dashboard
               </button>
@@ -114,13 +114,13 @@ export function SplashPage() {
               <>
                 <button 
                   onClick={() => navigate("/login")}
-                  className="hidden sm:block font-body-sm text-body-sm text-on-surface-variant hover:text-primary px-sp-sm py-sp-xs transition-all active:scale-95 cursor-pointer"
+                  className="hidden sm:block font-body-sm text-body-sm text-on-surface-variant hover:text-primary px-4 py-2 rounded-full transition-all active:scale-95 cursor-pointer font-medium"
                 >
                   Login
                 </button>
                 <button 
                   onClick={() => navigate("/signup")}
-                  className="bg-primary-container text-on-primary-container px-sp-md py-sp-xs rounded-lg font-body-md text-body-md font-semibold transition-all hover:brightness-110 active:scale-95 shadow-sm cursor-pointer"
+                  className="bg-primary text-on-primary px-6 py-2.5 rounded-full font-medium text-body-md transition-all hover:bg-primary/90 active:bg-primary/80 active:scale-95 shadow-sm cursor-pointer"
                 >
                   Start Consultation
                 </button>
@@ -135,33 +135,32 @@ export function SplashPage() {
         <section className="relative min-h-[90vh] flex items-center px-margin overflow-hidden">
           {/* AI Atmospheric Background */}
           <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
-            <div className="absolute top-1/4 -right-1/4 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[120px]"></div>
-            <div className="absolute bottom-1/4 -left-1/4 w-[500px] h-[500px] bg-secondary/10 rounded-full blur-[100px]"></div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-30 bg-cover bg-center" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/carbon-fibre.png')" }}></div>
+            <div className="absolute top-1/4 -right-1/4 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px]"></div>
+            <div className="absolute bottom-1/4 -left-1/4 w-[500px] h-[500px] bg-secondary-container/20 rounded-full blur-[100px]"></div>
           </div>
           <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-sp-xl items-center relative z-10">
             <div className="space-y-sp-md">
-              <div className="inline-flex items-center gap-sp-xs px-sp-sm py-1 rounded-full bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30 text-primary text-label-caps font-label-caps font-semibold">
+              <div className="inline-flex items-center gap-sp-xs px-4 py-1.5 rounded-full bg-secondary-container text-on-secondary-container text-xs font-medium border border-secondary-container">
                 <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
                 NEXT-GEN CLINICAL INTELLIGENCE
               </div>
-              <h1 className="font-headline-xl text-headline-xl md:text-[56px] md:leading-[64px] text-on-surface">
+              <h1 className="font-headline-xl text-headline-xl md:text-[56px] md:leading-[64px] text-on-surface font-bold">
                 Precision Navigation for <br />
                 <span className="text-primary">Modern Healthcare</span>
               </h1>
-              <p className="font-body-md text-body-md text-on-surface-variant max-w-lg">
+              <p className="font-body-md text-body-md text-on-surface-variant max-w-lg leading-relaxed">
                 Skip the guesswork. Use MedPath's AI to find the right hospital and specialists based on your unique symptoms, medical history, and clinical data points.
               </p>
               <div className="flex flex-wrap gap-sp-sm pt-sp-xs">
                 <button 
                   onClick={() => navigate(user ? "/home" : "/signup")}
-                  className="bg-primary text-on-primary px-sp-lg py-sp-sm rounded-lg font-headline-lg text-[18px] transition-all hover:brightness-110 active:scale-95 shadow-[0_0_20px_rgba(45,212,191,0.3)] cursor-pointer"
+                  className="bg-primary text-on-primary px-8 py-3.5 rounded-full font-medium text-[16px] transition-all hover:bg-primary/90 active:bg-primary/80 active:scale-95 shadow-sm hover:shadow-md cursor-pointer"
                 >
                   {user ? "Go to Dashboard" : "Start Free Consultation"}
                 </button>
                 <a 
                   href="#how-it-works"
-                  className="border border-outline-variant text-on-surface px-sp-lg py-sp-sm rounded-lg font-headline-lg text-[18px] transition-all hover:bg-surface-variant/50 active:scale-95 inline-flex items-center justify-center"
+                  className="border border-outline text-primary px-8 py-3.5 rounded-full font-medium text-[16px] transition-all hover:bg-primary/10 active:scale-95 inline-flex items-center justify-center"
                 >
                   How it Works
                 </a>
@@ -423,7 +422,7 @@ export function SplashPage() {
         <div className="flex flex-col md:flex-row justify-between items-center px-margin max-w-7xl mx-auto gap-sp-md">
           <div className="space-y-sp-sm">
             <div className="flex items-center gap-sp-sm">
-              <img alt="MedPath Logo Footer" className="w-8 h-8 object-contain" src={logoImage} />
+              <MedPathLogo size={32} className="rounded-lg shadow-xs" />
               <span className="font-headline-lg text-[24px] font-bold text-primary">MedPath</span>
             </div>
             <p className="font-body-sm text-body-sm text-on-surface-variant opacity-80 max-w-xs">

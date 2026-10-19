@@ -296,6 +296,7 @@ model RecommendationSnapshot {
   longitude       Float?
   reason          String       @db.Text
   source          String?
+  suitability     String?
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
 
   // New fields to store detailed hospital discovery results
@@ -313,6 +314,23 @@ model RecommendationSnapshot {
   hasEmergency       Boolean?     @map("has_emergency")
   hasIcu             Boolean?     @map("has_icu")
   estimatedCostRange Json?        @map("estimated_cost_range")
+
+  // Additional rich Swasthya discovery fields
+  specialties        Json?
+  departments        Json?
+  facilities         Json?
+  services           Json?
+  doctors            Json?
+  languages          Json?
+  emergencyContact   String?      @map("emergency_contact")
+  email              String?
+  googleMapsUrl      String?      @map("google_maps_url")
+  landmark           String?
+  bedCapacity        Int?         @map("bed_capacity")
+  operatingHours     String?      @map("operating_hours")
+  insuranceAccepted  Boolean?     @map("insurance_accepted")
+  parking            Boolean?
+  rawMetadata        Json?        @map("raw_metadata")
 
   conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   reviews         HospitalReview[]

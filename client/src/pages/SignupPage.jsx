@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import logoImage from "../assets/medpath_logo.png";
+import MedPathLogo from "../components/MedPathLogo";
 
 export function SignupPage() {
   const { signupWithEmail, loginWithGoogle } = useAuth();
@@ -82,7 +82,7 @@ export function SignupPage() {
         
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-3 mb-2 hover:opacity-90 transition-all cursor-pointer">
-            <img alt="MedPath" className="w-10 h-10 object-contain" src={logoImage} />
+            <MedPathLogo size={40} className="rounded-xl shadow-xs" />
             <span className="text-on-primary font-bold text-2xl tracking-tight">MedPath</span>
           </Link>
         </div>
@@ -140,7 +140,7 @@ export function SignupPage() {
         <main className="w-full max-w-[420px] px-6 sm:px-8 z-10 relative py-8">
           {/* Mobile-only logo */}
           <Link to="/" className="lg:hidden mb-8 flex items-center gap-3 justify-center hover:opacity-90 transition-all cursor-pointer">
-            <img alt="MedPath" className="w-10 h-10 object-contain" src={logoImage} />
+            <MedPathLogo size={40} className="rounded-xl shadow-xs" />
             <span className="font-bold text-2xl tracking-tight text-primary">MedPath</span>
           </Link>
 
@@ -162,7 +162,7 @@ export function SignupPage() {
           <button 
             onClick={handleGoogleLogin}
             disabled={loadingGoogle}
-            className="w-full flex justify-center items-center py-2.5 px-4 border border-outline-variant/40 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low hover:border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 cursor-pointer disabled:opacity-60 mb-5" 
+            className="w-full flex justify-center items-center py-2.5 px-4 border border-outline rounded-full bg-surface-container-low hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 cursor-pointer disabled:opacity-40 mb-5" 
             type="button"
           >
             {loadingGoogle ? (
@@ -199,7 +199,7 @@ export function SignupPage() {
                   <span className="material-symbols-outlined text-outline text-[18px]">person</span>
                 </div>
                 <input 
-                  className="block w-full pl-10 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-xl text-on-surface text-sm placeholder:text-outline/60 focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all duration-200" 
+                  className="block w-full pl-10 pr-4 py-3 bg-surface-container-low dark:bg-surface-container border-0 border-b-2 border-outline rounded-t-xl rounded-b-none text-on-surface text-sm placeholder:text-outline focus:border-primary focus:outline-none transition-all duration-200" 
                   id="fullName" 
                   name="fullName" 
                   placeholder="John Doe" 
@@ -219,7 +219,7 @@ export function SignupPage() {
                   <span className="material-symbols-outlined text-outline text-[18px]">mail</span>
                 </div>
                 <input 
-                  className="block w-full pl-10 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-xl text-on-surface text-sm placeholder:text-outline/60 focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all duration-200" 
+                  className="block w-full pl-10 pr-4 py-3 bg-surface-container-low dark:bg-surface-container border-0 border-b-2 border-outline rounded-t-xl rounded-b-none text-on-surface text-sm placeholder:text-outline focus:border-primary focus:outline-none transition-all duration-200" 
                   id="signup-email" 
                   name="email" 
                   placeholder="name@example.com" 
@@ -239,7 +239,7 @@ export function SignupPage() {
                   <span className="material-symbols-outlined text-outline text-[18px]">lock</span>
                 </div>
                 <input 
-                  className="block w-full pl-10 pr-11 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-xl text-on-surface text-sm placeholder:text-outline/60 focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition-all duration-200" 
+                  className="block w-full pl-10 pr-11 py-3 bg-surface-container-low dark:bg-surface-container border-0 border-b-2 border-outline rounded-t-xl rounded-b-none text-on-surface text-sm placeholder:text-outline focus:border-primary focus:outline-none transition-all duration-200" 
                   id="signup-password" 
                   name="password" 
                   placeholder="Min. 8 characters" 
@@ -258,26 +258,27 @@ export function SignupPage() {
                   <span className="material-symbols-outlined text-[18px]">{showPassword ? "visibility_off" : "visibility"}</span>
                 </button>
               </div>
-              {/* Password strength indicator */}
-              {password && (
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="flex-1 flex gap-1">
-                    {[1, 2, 3, 4].map((level) => (
-                      <div 
-                        key={level} 
-                        className={`h-1 rounded-full flex-1 transition-all duration-300 ${
-                          level <= passwordStrength.score ? passwordStrength.color : "bg-outline-variant/30"
-                        }`}
-                      ></div>
-                    ))}
-                  </div>
-                  <span className={`text-xs font-medium ${
-                    passwordStrength.score <= 1 ? "text-error" : 
-                    passwordStrength.score === 2 ? "text-on-tertiary-container" : "text-secondary"
-                  }`}>{passwordStrength.label}</span>
-                </div>
-              )}
             </div>
+
+            {/* Password Strength Indicator */}
+            {password && (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-on-surface-variant">Password strength:</span>
+                  <span className={`font-semibold capitalize ${
+                    passwordStrength.score <= 1 ? "text-error" :
+                    passwordStrength.score === 2 ? "text-tertiary" : "text-primary"
+                  }`}>
+                    {passwordStrength.label}
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden flex gap-0.5">
+                  <div className={`h-full rounded-full transition-all duration-300 ${
+                    passwordStrength.score >= 1 ? (passwordStrength.score >= 3 ? "bg-primary" : "bg-tertiary") : "bg-error"
+                  }`} style={{ width: `${Math.max(15, (passwordStrength.score / 4) * 100)}%` }}></div>
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-on-surface mb-1.5" htmlFor="confirmPassword">Confirm Password</label>
@@ -286,16 +287,10 @@ export function SignupPage() {
                   <span className="material-symbols-outlined text-outline text-[18px]">lock</span>
                 </div>
                 <input 
-                  className={`block w-full pl-10 pr-11 py-2.5 bg-surface-container-lowest border rounded-xl text-on-surface text-sm placeholder:text-outline/60 focus:ring-2 outline-none transition-all duration-200 ${
-                    confirmPassword && confirmPassword !== password 
-                      ? "border-error/50 focus:border-error focus:ring-error/15" 
-                      : confirmPassword && confirmPassword === password
-                        ? "border-secondary/50 focus:border-secondary focus:ring-secondary/15"
-                        : "border-outline-variant/40 focus:border-primary focus:ring-primary/15"
-                  }`}
+                  className="block w-full pl-10 pr-11 py-3 bg-surface-container-low dark:bg-surface-container border-0 border-b-2 border-outline rounded-t-xl rounded-b-none text-on-surface text-sm placeholder:text-outline focus:border-primary focus:outline-none transition-all duration-200" 
                   id="confirmPassword" 
                   name="confirmPassword" 
-                  placeholder="••••••••" 
+                  placeholder="Re-enter password" 
                   required 
                   type={showConfirm ? "text" : "password"}
                   autoComplete="new-password"
@@ -318,7 +313,7 @@ export function SignupPage() {
                 </p>
               )}
               {confirmPassword && confirmPassword === password && (
-                <p className="mt-1 text-xs text-secondary flex items-center gap-1">
+                <p className="mt-1 text-xs text-primary flex items-center gap-1">
                   <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
                   Passwords match
                 </p>
@@ -327,7 +322,7 @@ export function SignupPage() {
 
             <button 
               disabled={loadingSubmit || (confirmPassword && confirmPassword !== password)}
-              className="w-full flex justify-center items-center py-2.5 px-4 rounded-xl font-medium text-sm text-on-primary bg-primary hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 disabled:opacity-60 cursor-pointer shadow-lg shadow-primary/20 active:scale-[0.98] mt-1" 
+              className="w-full flex justify-center items-center py-3 px-6 rounded-full font-medium text-sm text-on-primary bg-primary hover:bg-primary/90 active:bg-primary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 disabled:opacity-40 cursor-pointer shadow-sm hover:shadow-md active:scale-95 mt-1" 
               type="submit"
             >
               {loadingSubmit ? (

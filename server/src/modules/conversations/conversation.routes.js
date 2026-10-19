@@ -10,7 +10,13 @@ const {
 
 const router = express.Router();
 
-// All conversation routes require authentication
+// Get specific recommendation snapshot details directly (publicly accessible)
+router.get(
+  '/recommendations/:snapshotId',
+  conversationController.getRecommendationSnapshot
+);
+
+// All conversation session routes below require authentication
 router.use(verifyFirebaseToken);
 
 // Create new conversation

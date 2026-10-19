@@ -1,5 +1,6 @@
 const cacheService = require('./cache.service');
 const swasthyaService = require('./swasthya.service');
+const { normalizeHospital, normalizeLocalHospital, toSnapshotCreateData } = require('./hospital.normalizer');
 const db = require('../config/database');
 const logger = require('../config/logger');
 
@@ -70,27 +71,16 @@ async function executeLocalHospitalDiscovery(conversationId, taskId) {
       hospitals = await db.prisma.hospital.findMany({ take: 4 });
     }
 
-    const recommendations = hospitals.map((h, index) => {
-      const distStr = getFormattedDistance({ latitude: h.latitude, longitude: h.longitude }, pLat, pLng);
-      return {
-        hospital_name: h.hospitalName,
-        rank: index + 1,
-        overall_score: h.overallRating ? Math.round(h.overallRating * 20) : 88 - (index * 5),
-        overall_rating: h.overallRating || 4.5,
-        estimated_cost_range: { min: 500, max: 2500, currency: "INR" },
-        distance_km: distStr,
-        latitude: h.latitude,
-        longitude: h.longitude,
-        explanation: `Specialized regional facility equipped for ${symptoms}. Offers 24/7 care and emergency capabilities.`,
-        suitability: 'High Match',
-        summary: `${h.hospitalName} provides comprehensive medical services with modern diagnostic capabilities.`,
-        formatted_address: h.address || `${city}, India`,
-        contact_number: h.phoneNumber || '+91-120-4000000',
-        website: h.websiteUrl || null,
-        has_emergency: h.emergencyAvailable ?? true,
-        has_icu: h.icuAvailable ?? true,
-      };
-    });
+    // Use centralised normalizer for canonical structure
+    const recommendations = hospitals.map((h, index) =>
+      normalizeLocalHospital(h, index, {
+        symptoms,
+        city,
+        patientLat: pLat,
+        patientLng: pLng,
+        distanceFn: getFormattedDistance,
+      })
+    );
 
     const summaryMsg = `Based on your location in ${city} and health criteria regarding '${symptoms}', I have processed local medical registries. Here are your optimized options:`;
 
@@ -105,27 +95,9 @@ async function executeLocalHospitalDiscovery(conversationId, taskId) {
         data: { isContextComplete: true, updatedAt: new Date() },
       });
 
-      for (const hosp of recommendations) {
+      for (const canonical of recommendations) {
         await tx.recommendationSnapshot.create({
-          data: {
-            conversationId,
-            hospitalName: hosp.hospital_name,
-            rankingPosition: hosp.rank,
-            confidenceScore: hosp.overall_score,
-            trustScore: hosp.overall_rating,
-            estimatedCost: JSON.stringify(hosp.estimated_cost_range),
-            distance: hosp.distance_km,
-            latitude: hosp.latitude,
-            longitude: hosp.longitude,
-            reason: hosp.explanation,
-            source: hosp.suitability,
-            summary: hosp.summary,
-            address: hosp.formatted_address,
-            phone: hosp.contact_number,
-            website: hosp.website,
-            hasEmergency: hosp.has_emergency,
-            hasIcu: hosp.has_icu,
-          },
+          data: toSnapshotCreateData(conversationId, canonical),
         });
       }
 
@@ -145,6 +117,8 @@ async function executeLocalHospitalDiscovery(conversationId, taskId) {
       current_stage: 'Completed',
       percentage: 100,
     }, 1800);
+
+    await cacheService.del(`conversation:${conversationId}`);
 
     logger.info(`✅ [Local Discovery Fallback] Local hospital discovery completed for conversation ${conversationId}`);
   } catch (err) {
@@ -169,15 +143,20 @@ function startPolling(conversationId, taskId) {
   }
   
   let attempts = 0;
+  let isTickRunning = false;
+  let hasHandledCompletion = false;
   const maxAttempts = 150; // 150 attempts * 2s = 300 seconds (5 minutes) timeout
 
   const intervalId = setInterval(async () => {
+    if (isTickRunning || hasHandledCompletion) return;
+    isTickRunning = true;
     attempts++;
     
     try {
       if (attempts > maxAttempts) {
         logger.error(`❌ [Discovery Polling] Timeout exceeded for task ${taskId}. Polling stopped.`);
         clearInterval(intervalId);
+        hasHandledCompletion = true;
         
         // Update Redis task status
         await cacheService.set(`task:${taskId}`, {
@@ -194,29 +173,34 @@ function startPolling(conversationId, taskId) {
       const progress = progressRes.data;
 
       // 2. Cache status in Redis immediately (Never hit PostgreSQL during polling)
+      // FIX: Support both progress.percentage and progress.progress_percent
+      const progressPct = progress.percentage ?? progress.progress_percent ?? 0;
+      
       // IMPORTANT: Do NOT cache 'completed' before DB transaction — this causes a race
       // condition where the frontend sees "completed" but the DB hasn't persisted yet.
       const isTerminal = progress.status === 'completed' || progress.status === 'failed';
       const taskData = {
-        progress: isTerminal ? 95 : progress.progress_percent,
+        progress: isTerminal ? 95 : progressPct,
         status: isTerminal ? 'running' : progress.status,
         current_stage: isTerminal ? 'Preparing Recommendations' : (progress.current_stage || 'Processing'),
-        percentage: isTerminal ? 95 : progress.progress_percent,
+        percentage: isTerminal ? 95 : progressPct,
       };
       
-      logger.debug(`🔄 [Discovery Polling] Task ${taskId}: ${progress.status} - Stage: ${progress.current_stage} (${progress.progress_percent}%)`);
+      logger.debug(`🔄 [Discovery Polling] Task ${taskId}: ${progress.status} - Stage: ${progress.current_stage} (${progressPct}%)`);
       await cacheService.set(`task:${taskId}`, taskData, 1800); // 30 minutes TTL
 
       // 3. Handle terminal states
       if (progress.status === 'completed') {
-        logger.info(`✅ [Discovery Polling] Task ${taskId} completed! Persisting results...`);
+        if (hasHandledCompletion) return;
+        hasHandledCompletion = true;
         clearInterval(intervalId);
+        logger.info(`✅ [Discovery Polling] Task ${taskId} completed! Persisting results...`);
 
         const taskResult = progress.result;
-        let recommendations = taskResult?.recommendations || [];
+        let rawRecommendations = taskResult?.recommendations || progress.recommendations || [];
 
         // Fallback to local database facilities if external web search returned 0 matches
-        if (!recommendations || recommendations.length === 0) {
+        if (!rawRecommendations || rawRecommendations.length === 0) {
           logger.info(`⚠️ [Discovery Polling] Task ${taskId} returned 0 web recommendations. Populating from local hospital directory...`);
           const patientCtx = await db.prisma.patientContext.findUnique({ where: { conversationId } });
           const city = patientCtx?.city || patientCtx?.location || 'India';
@@ -232,161 +216,171 @@ function startPolling(conversationId, taskId) {
           if (!localHospitals || localHospitals.length === 0) {
             localHospitals = await db.prisma.hospital.findMany({ take: 4 });
           }
-          recommendations = localHospitals.map((h, index) => ({
-            hospital_name: h.hospitalName,
-            rank: index + 1,
-            overall_score: h.overallRating ? Math.round(h.overallRating * 20) : 88 - (index * 5),
-            overall_rating: h.overallRating || 4.5,
-            estimated_cost_range: { min: 500, max: 2500, currency: "INR" },
-            distance_km: getFormattedDistance(h, patientCtx?.latitude, patientCtx?.longitude),
-            latitude: h.latitude,
-            longitude: h.longitude,
-            explanation: `Verified medical facility providing specialized care for ${patientCtx?.symptoms || 'your reported symptoms'}.`,
-            suitability: 'High Match',
-            summary: `${h.hospitalName} provides medical services with experienced clinical staff.`,
-            formatted_address: h.address || `${city}, India`,
-            contact_number: h.phoneNumber || '+91-120-4000000',
-            website: h.websiteUrl || null,
-            has_emergency: h.emergencyAvailable ?? true,
-            has_icu: h.icuAvailable ?? true,
-          }));
+          // Use centralized normalizer for local fallback
+          rawRecommendations = localHospitals.map((h, index) => {
+            const canonical = normalizeLocalHospital(h, index, {
+              symptoms: patientCtx?.symptoms || 'your reported symptoms',
+              city,
+              patientLat: patientCtx?.latitude,
+              patientLng: patientCtx?.longitude,
+              distanceFn: getFormattedDistance,
+            });
+            // Return as raw-like for consistency with the normalizeHospital path below
+            return canonical.rawMetadata;
+          });
         }
 
+        // Extract discovery-level context
+        const discoverySpecialty = taskResult?.specialty || progress.specialty || null;
+        const discoveryLocation = taskResult?.location_searched || progress.location_searched || null;
+
         // Save AI Response Summary Message
-        const summaryMsg = `Based on your location in ${taskResult?.location_searched || 'your location'} and health criteria regarding '${taskResult?.specialty || 'your symptoms'}', I have processed local medical registries. Here are your optimized options:`;
+        const summaryMsg = `Based on your location in ${discoveryLocation || 'your location'} and health criteria regarding '${discoverySpecialty || 'your symptoms'}', I have processed local medical registries. Here are your optimized options:`;
 
-        // Execute all database updates in a single PostgreSQL transaction
-        await db.prisma.$transaction(async (tx) => {
-          // A. Update conversation status to COMPLETED
-          await tx.conversation.update({
-            where: { id: conversationId },
-            data: {
-              status: 'COMPLETED',
-              updatedAt: new Date(),
-            },
-          });
-
-          // B. Update PatientContext complete status
-          await tx.patientContext.update({
-            where: { conversationId },
-            data: {
-              isContextComplete: true,
-              updatedAt: new Date(),
-            },
-          });
-
-          // Fetch patient location for Haversine distance calculation fallback
-          const patientCtx = await tx.patientContext.findUnique({ where: { conversationId } });
-          const pLat = patientCtx?.latitude;
-          const pLng = patientCtx?.longitude;
-
-          // C. Create RecommendationSnapshot record for every candidate hospital
-          for (const hosp of recommendations) {
-            const computedDist = getFormattedDistance(hosp, pLat, pLng) || (typeof hosp.distance === 'string' ? hosp.distance : null) || 'Nearby';
-            const costStr = typeof hosp.estimated_cost_range === 'object' && hosp.estimated_cost_range !== null
-              ? JSON.stringify(hosp.estimated_cost_range)
-              : (typeof hosp.estimatedCost === 'string' ? hosp.estimatedCost : (hosp.estimated_cost || 'Variable Cost'));
-            const rawScore = typeof hosp.overall_score === 'number' ? hosp.overall_score : 0.85;
-            const confScore = rawScore <= 1 ? rawScore : rawScore / 100;
-            const trustScore = typeof hosp.overall_rating === 'number' ? hosp.overall_rating : 4.5;
-
-            await tx.recommendationSnapshot.create({
+        try {
+          // Execute all database updates in a single PostgreSQL transaction
+          await db.prisma.$transaction(async (tx) => {
+            // A. Update conversation status to COMPLETED
+            await tx.conversation.update({
+              where: { id: conversationId },
               data: {
-                conversationId,
-                hospitalName: hosp.hospital_name || hosp.name || 'Specialized Healthcare Facility',
-                rankingPosition: hosp.rank || 1,
-                confidenceScore: confScore,
-                trustScore: trustScore,
-                estimatedCost: costStr || 'Variable Cost',
-                distance: computedDist || 'Nearby',
-                latitude: hosp.latitude || null,
-                longitude: hosp.longitude || null,
-                reason: hosp.explanation || hosp.summary || 'Specialized clinical facility matched for your reported symptoms.',
-                source: hosp.suitability || 'Swasthya AI Core',
-                summary: hosp.summary || hosp.description || hosp.overview || null,
-                pros: hosp.pros || hosp.highlights || null,
-                cons: hosp.cons || hosp.considerations || null,
-                overallScore: confScore,
-                travelTime: hosp.estimated_travel_time_minutes ? `${hosp.estimated_travel_time_minutes} mins` : (hosp.travel_time || hosp.travelTime || null),
-                website: hosp.website || hosp.website_url || hosp.websiteUrl || null,
-                phone: hosp.contact_number || hosp.phone || hosp.phone_number || hosp.phoneNumber || hosp.contact || hosp.telephone || null,
-                address: hosp.formatted_address || hosp.address || hosp.location || hosp.full_address || `${patientCtx?.city || 'Local Area'}, India`,
-                hospitalType: hosp.hospital_type || hosp.hospitalType || hosp.type || 'General Hospital',
-                accreditations: hosp.accreditations || hosp.certifications || null,
-                reviewCount: hosp.review_count || hosp.reviewCount || null,
-                hasEmergency: hosp.has_emergency ?? hosp.hasEmergency ?? hosp.emergency_available ?? true,
-                hasIcu: hosp.has_icu ?? hosp.hasIcu ?? hosp.icu_available ?? true,
-                estimatedCostRange: hosp.estimated_cost_range || hosp.estimatedCostRange || hosp.cost || null,
+                status: 'COMPLETED',
+                updatedAt: new Date(),
               },
             });
-          }
 
-          // D. Create AI Final message
-          await tx.conversationMessage.create({
-            data: {
-              conversationId,
-              sender: 'AI',
-              message: summaryMsg,
-              messageType: 'FINAL',
-            },
+            // B. Update PatientContext complete status and persist discovery context
+            const existingCtx = await tx.patientContext.findUnique({ where: { conversationId } });
+            const existingContextData = existingCtx?.contextData || {};
+            await tx.patientContext.update({
+              where: { conversationId },
+              data: {
+                isContextComplete: true,
+                updatedAt: new Date(),
+                // Persist specialty and location_searched into contextData
+                contextData: {
+                  ...existingContextData,
+                  discoverySpecialty: discoverySpecialty,
+                  discoveryLocation: discoveryLocation,
+                },
+              },
+            });
+
+            // Also persist to conversation.contextData
+            const conversation = await tx.conversation.findUnique({ where: { id: conversationId } });
+            const existingConvoCtx = conversation?.contextData || {};
+            await tx.conversation.update({
+              where: { id: conversationId },
+              data: {
+                contextData: {
+                  ...existingConvoCtx,
+                  discoverySpecialty: discoverySpecialty,
+                  discoveryLocation: discoveryLocation,
+                },
+              },
+            });
+
+            // Fetch patient location for Haversine distance calculation fallback
+            const patientCtx = await tx.patientContext.findUnique({ where: { conversationId } });
+            const pLat = patientCtx?.latitude;
+            const pLng = patientCtx?.longitude;
+
+            // C. Create RecommendationSnapshot record for every candidate hospital
+            // Use centralized normalizer for ALL fields
+            for (const rawHosp of rawRecommendations) {
+              const canonical = normalizeHospital(rawHosp, {
+                patientLat: pLat,
+                patientLng: pLng,
+                defaultSource: 'Swasthya AI Core',
+                distanceFn: getFormattedDistance,
+              });
+
+              await tx.recommendationSnapshot.create({
+                data: toSnapshotCreateData(conversationId, canonical),
+              });
+            }
+
+            // D. Create AI Final message
+            await tx.conversationMessage.create({
+              data: {
+                conversationId,
+                sender: 'AI',
+                message: summaryMsg,
+                messageType: 'FINAL',
+              },
+            });
           });
-        });
 
-        logger.info(`✅ [Discovery Polling] Transaction succeeded for task ${taskId}. Updating Redis...`);
+          logger.info(`✅ [Discovery Polling] Transaction succeeded for task ${taskId}. Updating Redis...`);
 
-        // NOW it's safe to mark the task as completed in Redis — DB has committed
-        await cacheService.set(`task:${taskId}`, {
-          progress: 100,
-          status: 'completed',
-          current_stage: 'Completed',
-          percentage: 100,
-        }, 60); // Short TTL — frontend will pick it up on next poll
+          // NOW it's safe to mark the task as completed in Redis — DB has committed
+          await cacheService.set(`task:${taskId}`, {
+            progress: 100,
+            status: 'completed',
+            current_stage: 'Completed',
+            percentage: 100,
+          }, 60); // Short TTL — frontend will pick it up on next poll
 
-        // Give frontend one poll cycle (2s) to see "completed" before deleting
-        setTimeout(async () => {
-          try {
-            await Promise.all([
-              cacheService.del(`task:${taskId}`),
-              cacheService.del(`conversation:${conversationId}`),
-            ]);
-          } catch (cleanupErr) {
-            logger.warn(`⚠️ [Discovery Polling] Cache cleanup error: ${cleanupErr.message}`);
-          }
-        }, 4000);
+          // Give frontend one poll cycle (2s) to see "completed" before deleting
+          setTimeout(async () => {
+            try {
+              await Promise.all([
+                cacheService.del(`task:${taskId}`),
+                cacheService.del(`conversation:${conversationId}`),
+              ]);
+            } catch (cleanupErr) {
+              logger.warn(`⚠️ [Discovery Polling] Cache cleanup error: ${cleanupErr.message}`);
+            }
+          }, 4000);
+        } catch (txErr) {
+          logger.error(`❌ [Discovery Polling] Database persistence error for task ${taskId}: ${txErr.message}`, txErr);
+          await cacheService.set(`task:${taskId}`, {
+            status: 'failed',
+            progress: 100,
+            current_stage: 'Error',
+            error_message: 'Database persistence failed',
+          }, 1800);
+        }
         
       } else if (progress.status === 'failed') {
         const errorMsg = progress.error_message || 'Discovery task failed';
-        logger.error(`❌ [Discovery Polling] Task ${taskId} failed: ${errorMsg}`);
+        logger.warn(`⚠️ [Discovery Polling] Task ${taskId} failed from upstream provider (${errorMsg}). Gracefully falling back to local medical registry...`);
         clearInterval(intervalId);
+        hasHandledCompletion = true;
 
-        // Perform transaction for failure updates
-        await db.prisma.$transaction(async (tx) => {
-          await tx.conversation.update({
-            where: { id: conversationId },
-            data: {
-              status: 'COMPLETED',
-              updatedAt: new Date(),
-            },
+        try {
+          await executeLocalHospitalDiscovery(conversationId, taskId);
+        } catch (fallbackErr) {
+          logger.error(`❌ [Discovery Polling] Local discovery fallback error: ${fallbackErr.message}`);
+          await db.prisma.$transaction(async (tx) => {
+            await tx.conversation.update({
+              where: { id: conversationId },
+              data: {
+                status: 'COMPLETED',
+                updatedAt: new Date(),
+              },
+            });
+
+            await tx.conversationMessage.create({
+              data: {
+                conversationId,
+                sender: 'AI',
+                message: `Unable to complete regional healthcare discovery: ${errorMsg}. Please try re-submitting your query shortly.`,
+                messageType: 'FINAL',
+              },
+            });
           });
 
-          await tx.conversationMessage.create({
-            data: {
-              conversationId,
-              sender: 'AI',
-              message: `Unable to complete regional healthcare discovery: ${errorMsg}. Please try re-submitting your query shortly.`,
-              messageType: 'FINAL',
-            },
-          });
-        });
-
-        // Clean Redis cache after transaction succeeds
-        await Promise.all([
-          cacheService.del(`task:${taskId}`),
-          cacheService.del(`conversation:${conversationId}`),
-        ]);
+          await Promise.all([
+            cacheService.del(`task:${taskId}`),
+            cacheService.del(`conversation:${conversationId}`),
+          ]);
+        }
       }
     } catch (error) {
       logger.warn(`⚠️ [Discovery Polling] Error in polling tick or transaction for task ${taskId}: ${error.message}`);
+    } finally {
+      isTickRunning = false;
     }
   }, 2000); // Poll every 2 seconds
 }

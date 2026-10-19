@@ -17,22 +17,23 @@ export function Button({
   iconRight,
   ...props
 }) {
-  const baseStyles = "inline-flex items-center justify-center font-bold transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-50 select-none hover-lift active:scale-95";
+  const baseStyles = "inline-flex items-center justify-center font-medium transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 select-none active:scale-95 rounded-full";
 
   const variants = {
-    primary: "premium-gradient-primary text-on-primary hover:opacity-95 shadow-md",
-    purple: "bg-gradient-to-r from-[#6366f1] to-[#818cf8] text-white hover:opacity-95 shadow-md",
-    secondary: "bg-secondary text-on-secondary hover:bg-secondary/95 shadow-md",
-    outline: "border border-outline-variant/50 text-on-surface hover:bg-surface-container-low dark:border-outline-variant/30",
-    ghost: "text-on-surface hover:bg-surface-container-low hover:text-primary",
-    danger: "bg-error text-on-error hover:bg-error/90 shadow-md",
-    success: "bg-tertiary-container/30 text-on-tertiary-container dark:text-tertiary border border-tertiary/10 hover:bg-tertiary-container/40 shadow-sm",
+    primary: "bg-primary text-on-primary hover:bg-primary/90 active:bg-primary/80 shadow-sm hover:shadow-md",
+    purple: "bg-primary text-on-primary hover:bg-primary/90 active:bg-primary/80 shadow-sm hover:shadow-md",
+    secondary: "bg-secondary-container text-on-secondary-container hover:bg-secondary-container/90 active:bg-secondary-container/80 shadow-sm",
+    tonal: "bg-secondary-container text-on-secondary-container hover:bg-secondary-container/90 active:bg-secondary-container/80 shadow-sm",
+    outline: "bg-transparent border border-outline text-primary hover:bg-primary/10 active:bg-primary/15",
+    ghost: "bg-transparent text-primary hover:bg-primary/10 active:bg-primary/15",
+    danger: "bg-error text-on-error hover:bg-error/90 active:bg-error/80 shadow-sm",
+    success: "bg-tertiary-container text-on-tertiary-container hover:bg-tertiary-container/90 active:bg-tertiary-container/80 shadow-sm",
   };
 
   const sizes = {
-    sm: "px-3.5 py-1.5 rounded-lg text-label-sm gap-1.5",
-    md: "px-5 py-2.5 rounded-xl text-label-md gap-2",
-    lg: "px-6 py-3.5 rounded-2xl text-label-lg gap-2.5",
+    sm: "px-4 py-1.5 rounded-full text-label-sm gap-1.5 min-h-[32px]",
+    md: "px-6 py-2.5 rounded-full text-label-md gap-2 min-h-[40px]",
+    lg: "px-8 py-3.5 rounded-full text-label-lg gap-2.5 min-h-[48px]",
   };
 
   const currentVariant = variants[variant] || variants.primary;

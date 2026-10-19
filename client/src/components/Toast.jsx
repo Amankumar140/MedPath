@@ -20,16 +20,16 @@ function ToastItem({ toast, onDismiss }) {
 
   const colorMap = {
     error: "bg-error-container text-on-error-container border-error/20",
-    warning: "bg-tertiary-container/30 text-on-tertiary-container dark:text-tertiary border-tertiary/20",
-    success: "bg-secondary-container/30 text-on-secondary-container border-secondary/20",
-    info: "bg-primary-container/30 text-on-primary-container border-primary/20",
+    warning: "bg-tertiary-container text-on-tertiary-container border-tertiary/20",
+    success: "bg-secondary-container text-on-secondary-container border-secondary-container",
+    info: "bg-primary-container text-on-primary-container border-primary-container",
   };
 
   return (
     <div
       role="alert"
       aria-live="assertive"
-      className={`flex items-start gap-3 p-4 rounded-xl border shadow-lg backdrop-blur-sm max-w-sm w-full animate-slide-up ${colorMap[toast.type] || colorMap.info}`}
+      className={`flex items-start gap-3 p-4 rounded-2xl border shadow-md max-w-sm w-full animate-slide-up ${colorMap[toast.type] || colorMap.info}`}
     >
       <span className="material-symbols-outlined text-[20px] mt-0.5 shrink-0">
         {iconMap[toast.type] || "info"}

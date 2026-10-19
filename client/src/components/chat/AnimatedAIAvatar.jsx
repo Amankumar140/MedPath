@@ -44,9 +44,8 @@ export function AnimatedAIAvatar({ className = "", isStreaming = false }) {
   return (
     <motion.div
       variants={floatVariants}
-      animate="animate"
       initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
+      animate="animate"
       transition={{ type: "spring", stiffness: 200, damping: 20 }}
       className={`relative w-10 h-10 flex-shrink-0 flex items-center justify-center select-none ${className}`}
     >

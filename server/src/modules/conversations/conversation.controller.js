@@ -484,6 +484,30 @@ async function getDiscoveryProgress(req, res, next) {
   }
 }
 
+/**
+ * GET /conversations/recommendations/:snapshotId
+ * Retrieve specific recommendation snapshot details directly from the database.
+ */
+async function getRecommendationSnapshot(req, res, next) {
+  try {
+    const { snapshotId } = req.params;
+    const conversationRepository = require('./conversation.repository');
+    const snapshot = await conversationRepository.findRecommendationSnapshotById(snapshotId);
+    if (!snapshot) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hospital recommendation not found',
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      data: snapshot,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   createConversation,
   listConversations,
@@ -491,4 +515,5 @@ module.exports = {
   sendMessage,
   softDeleteConversation,
   getDiscoveryProgress,
+  getRecommendationSnapshot,
 };

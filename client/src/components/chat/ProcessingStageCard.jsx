@@ -6,43 +6,43 @@ const STAGE_DETAILS = {
     title: "Analyzing symptoms",
     description: "Parsing clinical descriptions and identifying key indicators...",
     icon: "psychology",
-    color: "text-blue-500",
-    bg: "bg-blue-500/10 border-blue-500/20"
+    color: "text-primary",
+    bg: "bg-secondary-container/50 border-secondary-container/60"
   },
   understanding: {
     title: "Understanding context",
     description: "Synthesizing symptoms into patient clinical profile...",
     icon: "insights",
-    color: "text-indigo-500",
-    bg: "bg-indigo-500/10 border-indigo-500/20"
+    color: "text-primary",
+    bg: "bg-surface-container border-outline-variant/20"
   },
   searching: {
     title: "Searching hospitals",
     description: "Locating regional clinics and emergency departments...",
     icon: "search",
-    color: "text-cyan-500",
-    bg: "bg-cyan-500/10 border-cyan-500/20"
+    color: "text-primary",
+    bg: "bg-secondary-container/50 border-secondary-container/60"
   },
   ranking: {
     title: "Ranking recommendations",
     description: "Ordering options by trust score, cost, and distance...",
     icon: "sort",
-    color: "text-purple-500",
-    bg: "bg-purple-500/10 border-purple-500/20"
+    color: "text-tertiary",
+    bg: "bg-tertiary-container/40 border-tertiary-container/50"
   },
   preparing: {
     title: "Preparing response",
     description: "Formulating clinical recommendations and layout...",
     icon: "edit_note",
-    color: "text-teal-500",
-    bg: "bg-teal-500/10 border-teal-500/20"
+    color: "text-primary",
+    bg: "bg-surface-container border-outline-variant/20"
   },
   completed: {
     title: "Completed",
     description: "Search finalized. Recommendations compiled successfully!",
     icon: "verified",
-    color: "text-emerald-500",
-    bg: "bg-emerald-500/10 border-emerald-500/20"
+    color: "text-primary",
+    bg: "bg-secondary-container border-secondary-container"
   }
 };
 
